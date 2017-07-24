@@ -1,20 +1,67 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <ListPreference
-        android:defaultValue="100"
-        android:key="pref_logging_rate"
-        android:entries="@array/pref_logging_rate_list_titles"
-        android:entryValues="@array/pref_logging_rate_list_values"
-        android:title="@string/pref_logging_rate_title"
-        android:negativeButtonText="@null"
-        android:positiveButtonText="@null"
-        />
+    <PreferenceCategory
+        android:title="@string/pref_logging_ftp_title"
+        android:summary="XXX yyy xzzz">
 
-    <CheckBoxPreference
-        android:defaultValue="false"
-        android:key="pref_logging_headers"
-        android:title="@string/pref_logging_headers_title"
-        android:summary="@string/pref_logging_headers_description"/>
+        <EditTextPreference
+            android:inputType="number|numberDecimal"
+            android:digits="0123456789."
+            android:key="pref_logging_ftp_address"
+            android:title="@string/pref_logging_ftp_address_title"
+            />
+        <EditTextPreference
+            android:key="pref_logging_ftp_user"
+            android:title="@string/pref_logging_ftp_user_title"
+            />
+        <EditTextPreference
+            android:inputType="textPassword"
+            android:password="true"
+            android:key="pref_logging_ftp_pw"
+            android:title="@string/pref_logging_ftp_pw_title"
+            />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/pref_logging_conf_title">
+        <ListPreference
+            android:defaultValue="100"
+            android:key="pref_logging_rate"
+            android:entries="@array/pref_logging_rate_list_titles"
+            android:entryValues="@array/pref_logging_rate_list_values"
+            android:title="@string/pref_logging_rate_title"
+            android:negativeButtonText="@null"
+            android:positiveButtonText="@null"
+            />
+
+        <ListPreference
+            android:defaultValue="1000"
+            android:key="pref_logging_update"
+            android:entries="@array/pref_logging_update_list_titles"
+            android:entryValues="@array/pref_logging_update_list_values"
+            android:title="@string/pref_logging_update_title"
+            android:negativeButtonText="@null"
+            android:positiveButtonText="@null"
+            />
+
+        <ListPreference
+            android:defaultValue="5000"
+            android:key="pref_logging_length"
+            android:entries="@array/pref_logging_update_list_titles"
+            android:entryValues="@array/pref_logging_update_list_values"
+            android:title="@string/pref_logging_length_title"
+            android:negativeButtonText="@null"
+            android:positiveButtonText="@null"
+            />
+
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="pref_logging_headers"
+            android:title="@string/pref_logging_headers_title"
+            android:summary="@string/pref_logging_headers_description"/>
+
+    </PreferenceCategory>
+
 
     <!-- NOTE: EditTextPreference accepts EditText attributes. -->
     <!-- NOTE: EditTextPreference's summary should be set to its value by the activity code. -

@@ -3,7 +3,7 @@
     <!-- These settings headers are only used on tablets. -->
 
     <header
-        android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$RecordingPreferenceFragment"
+        android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$LoggingPreferenceFragment"
         android:icon="@drawable/ic_record_24dp"
         android:title="@string/pref_logging_header" />
 

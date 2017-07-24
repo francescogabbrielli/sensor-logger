@@ -10,6 +10,7 @@ import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
+import android.preference.EditTextPreference;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
@@ -18,6 +19,7 @@ import android.support.annotation.Nullable;
 import android.support.v7.app.ActionBar;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
+import android.text.InputType;
 import android.util.Log;
 import android.view.MenuItem;
 
@@ -71,7 +73,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
                 ListPreference listPreference = (ListPreference) preference;
                 int index = listPreference.findIndexOfValue(stringValue);
 
-                if (index<0) {
+                if (index < 0) {
                     preference.setSummary(null);
                 } else {
                     CharSequence val = listPreference.getEntries()[index];
@@ -82,6 +84,11 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
                             ? ctx.getString(descriptionId, val)
                             : val);
                 }
+
+            } else if(preference instanceof EditTextPreference &&
+                    (((EditTextPreference) preference).getEditText().getInputType() & InputType.TYPE_TEXT_VARIATION_PASSWORD)!=0) {
+
+                preference.setSummary(stringValue.replaceAll(".","*"));
 
             } else {
                 // For all other preferences, set the summary to the value's
@@ -162,7 +169,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
      */
     protected boolean isValidFragment(String fragmentName) {
         return PreferenceFragment.class.getName().equals(fragmentName)
-                || RecordingPreferenceFragment.class.getName().equals(fragmentName)
+                || LoggingPreferenceFragment.class.getName().equals(fragmentName)
                 || SensorsPreferenceFragment.class.getName().equals(fragmentName)
                 || CapturePreferenceFragment.class.getName().equals(fragmentName);
     }
@@ -172,12 +179,17 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
      * activity is showing a two-pane settings UI.
      */
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    public static class RecordingPreferenceFragment extends AppCompatPreferenceFragment {
+    public static class LoggingPreferenceFragment extends AppCompatPreferenceFragment {
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
             addPreferencesFromResource(R.xml.pref_logging);
-            bindPreferenceSummaryToValue(findPreference("pref_logging_rate"));
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_FTP_ADDRESS));
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_FTP_USER));
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_FTP_PW));
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_RATE));
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_UPDATE));
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_LENGTH));
         }
     }
 
@@ -202,31 +214,19 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
             PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(getActivity());
             screen.setOrderingAsAdded(true);
 
-            SensorManager sensorManager = (SensorManager) getActivity().getSystemService(SENSOR_SERVICE);
-            List<Sensor> sensors = sensorManager.getSensorList(Sensor.TYPE_ALL);
+            List<Sensor> sensors = Util.getSensors((SensorManager) getActivity().getSystemService(SENSOR_SERVICE));
             for (Sensor s : sensors) {
                 CheckBoxPreference p = new CheckBoxPreference(getActivity());
-                p.setTitle(getSensorName(s));
+                p.setTitle(Util.getSensorName(s));
                 p.setSummary(s.getName() + "/" + s.getVendor());
                 p.setDefaultValue(false);
-                p.setKey(s.getName());
+                p.setKey("pref_sensor_"+s.getType());
                 screen.addPreference(p);
             }
 
             setPreferenceScreen(screen);
         }
 
-        private String getSensorName(Sensor sensor){
-            String name = "";
-            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH)
-                name = sensor.getStringType();
-            if (name.startsWith("android.sensor."))
-                name = Character.toUpperCase(name.charAt(15))
-                        + name.substring(16).replaceAll("_"," ");
-            if("".equals(name))
-                name = sensor.getName();
-            return name;
-        }
     }
 
 }

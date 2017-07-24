@@ -2,25 +2,56 @@
     <string name="app_name">Sensor Logger</string>
     <string name="title_activity_settings">Settings</string>
 
+    <string name="app_folder">SensorLogger</string>
+
     <!-- Strings related to Settings -->
 
     <!-- Recording settings -->
     <string name="pref_logging_header">Logging</string>
 
+    <string name="pref_logging_ftp_title">FTP Server</string>
+    <string name="pref_logging_ftp_address_title">IP address</string>
+    <string name="pref_logging_ftp_user_title">User</string>
+    <string name="pref_logging_ftp_pw_title">Password</string>
+
     <string name="pref_logging_rate_title">Sampling rate</string>
     <string name="pref_logging_rate_description">Log new values with a frequency of %s</string>
 
+    <string name="pref_logging_conf_title">Output Configuration</string>
+
     <string-array name="pref_logging_rate_list_titles">
+        <item>25 fps</item>
+        <item>15 fps</item>
         <item>10 fps</item>
         <item>5 fps</item>
         <item>1 fps</item>
     </string-array>
     <string-array name="pref_logging_rate_list_values">
+        <item>50</item>
+        <item>67</item>
         <item>100</item>
         <item>200</item>
         <item>1000</item>
     </string-array>
 
+    <string name="pref_logging_update_title">Update interval</string>
+    <string name="pref_logging_update_description">The logfile is updated every %s</string>
+
+    <string-array name="pref_logging_update_list_titles">
+        <item>0.5 seconds</item>
+        <item>1 second</item>
+        <item>2 seconds</item>
+        <item>5 seconds</item>
+    </string-array>
+    <string-array name="pref_logging_update_list_values">
+        <item>500</item>
+        <item>1000</item>
+        <item>2000</item>
+        <item>5000</item>
+    </string-array>
+
+    <string name="pref_logging_length_title">Update length</string>
+    <string name="pref_logging_length_description">The logfile has got values of the last %s</string>
 
     <string name="pref_logging_headers_title">Log headers</string>
     <string name="pref_logging_headers_description">Print the headers row in the output file</string>
