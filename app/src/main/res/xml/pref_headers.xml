@@ -3,18 +3,23 @@
     <!-- These settings headers are only used on tablets. -->
 
     <header
+        android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$FTPPreferenceFragment"
+        android:icon="@drawable/ic_ftp_24dp"
+        android:title="@string/pref_ftp_header" />
+
+    <header
         android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$LoggingPreferenceFragment"
         android:icon="@drawable/ic_record_24dp"
         android:title="@string/pref_logging_header" />
 
     <header
-        android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$CapturePreferenceFragment"
-        android:icon="@drawable/ic_capture_24dp"
-        android:title="@string/pref_capture_header" />
-
-    <header
         android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$SensorsPreferenceFragment"
         android:icon="@drawable/ic_sensors_24dp"
         android:title="@string/pref_sensors_header" />
+
+    <header
+        android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$CapturePreferenceFragment"
+        android:icon="@drawable/ic_capture_24dp"
+        android:title="@string/pref_capture_header" />
 
 </preference-headers>

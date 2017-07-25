@@ -171,7 +171,8 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         return PreferenceFragment.class.getName().equals(fragmentName)
                 || LoggingPreferenceFragment.class.getName().equals(fragmentName)
                 || SensorsPreferenceFragment.class.getName().equals(fragmentName)
-                || CapturePreferenceFragment.class.getName().equals(fragmentName);
+                || CapturePreferenceFragment.class.getName().equals(fragmentName)
+                || FTPPreferenceFragment.class.getName().equals(fragmentName);
     }
 
     /**
@@ -184,12 +185,21 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
             addPreferencesFromResource(R.xml.pref_logging);
-            bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_FTP_ADDRESS));
-            bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_FTP_USER));
-            bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_FTP_PW));
             bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_RATE));
             bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_UPDATE));
             bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_LENGTH));
+        }
+    }
+
+    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
+    public static class FTPPreferenceFragment extends AppCompatPreferenceFragment {
+        @Override
+        public void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            addPreferencesFromResource(R.xml.pref_ftp);
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_FTP_ADDRESS));
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_FTP_USER));
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_FTP_PW));
         }
     }
 

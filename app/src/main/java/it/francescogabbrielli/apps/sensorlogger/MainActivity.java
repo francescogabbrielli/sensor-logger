@@ -42,7 +42,7 @@ public class MainActivity extends AppCompatActivity implements
     private BroadcastReceiver receiver;
     private IntentFilter filter;
 
-    private Camera camera;
+    private CameraHandlerThread cameraHandlerThread;
     private CameraPreview cameraPreview;
 
     private byte[] sensorsData;
@@ -65,6 +65,7 @@ public class MainActivity extends AppCompatActivity implements
                 if (RecordingService.BROADCAST_SEND_DATA.equals(intent.getAction())) {
                     sensorsData = intent.getStringExtra(RecordingService.EXTRA_SENSORS_DATA).getBytes();
                     try {
+                        Camera camera = cameraHandlerThread.getCamera();
                         camera.startPreview();
                         camera.takePicture(
 //                        new Camera.ShutterCallback() {
@@ -101,6 +102,7 @@ public class MainActivity extends AppCompatActivity implements
         b.setChecked(prefs.getBoolean(Util.PREF_RECORDING, false));
         b.setOnCheckedChangeListener(this);
 
+        cameraHandlerThread = new CameraHandlerThread(this);
         cameraPreview = new CameraPreview(this);
         FrameLayout preview = (FrameLayout) findViewById(R.id.recording_preview);
         preview.addView(cameraPreview);
@@ -154,6 +156,11 @@ public class MainActivity extends AppCompatActivity implements
             if (uploader!=null)
                 uploader.close();
             RecordingService.stopRecording(this);
+
+            // restart preview???
+            Camera camera = cameraHandlerThread.getCamera();
+            if (camera!=null)
+                camera.startPreview();
         }
     }
 
@@ -212,39 +219,23 @@ public class MainActivity extends AppCompatActivity implements
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
-    class CameraHandlerThread extends HandlerThread {
-        private Handler handler;
-        CameraHandlerThread() {
-            super("CameraHandlerThread");
-            start();
-            handler = new Handler(getLooper());
-        }
-        void openCamera(final SurfaceHolder holder) {
-            handler.post(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        camera = Camera.open();
-                        Camera.Parameters params = camera.getParameters();
-                        params.setPreviewSize(1280,720);
-                        params.setPictureSize(1280,720);
-                        camera.setParameters(params);
-                        Util.setCameraDisplayOrientation(MainActivity.this, 0, camera);
-                        camera.setPreviewDisplay(holder);
-                        camera.startPreview();
-                    } catch (IOException e) {
-                        Log.e(TAG, "Error setting camera preview", e);
-                    }
-                }
-            });
-        }
+    private void send(byte[] imageData, byte[] sensorsData) {
+        if (uploader != null)
+            try {
+                uploader.send(sensorsData, "sensors.csv");
+                uploader.send(imageData, "frame.jpg");
+            } catch (Exception e) {
+                Log.e(TAG, "Error sending data: " + e.getMessage(), e);
+            }
     }
 
     public void surfaceCreated(SurfaceHolder holder) {
-        new CameraHandlerThread().openCamera(holder);
+        cameraHandlerThread.openCamera(holder);
     }
 
     public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {
+
+        Camera camera = cameraHandlerThread.getCamera();
         // If your preview can change or rotate, take care of those events here.
         // Make sure to stop the preview before resizing or reformatting it.
         if (holder.getSurface()==null || camera==null)
@@ -272,21 +263,12 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     public void surfaceDestroyed(SurfaceHolder holder) {
+        Camera camera = cameraHandlerThread.getCamera();
         if (camera!=null)
             camera.release();
 //        onCheckedChanged((ToggleButton) findViewById(R.id.btn_rec), false);
     }
 
-    private void send(byte[] imageData, byte[] sensorsData) {
-        if (uploader != null)
-            try {
-                uploader.send(sensorsData, "sensors.csv");
-                uploader.send(imageData, "frame.jpg");
-            } catch (Exception e) {
-                Log.e(TAG, "Error sending data: " + e.getMessage(), e);
-            } finally {
-//                uploader.close();
-            }
-    }
+
 
 }

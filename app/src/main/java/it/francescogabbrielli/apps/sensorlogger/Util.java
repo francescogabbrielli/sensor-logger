@@ -16,13 +16,14 @@ import java.util.List;
 public class Util {
 
     public final static String PREF_RECORDING = "pref_recording";
-    public final static String PREF_LOGGING_FTP_ADDRESS = "pref_logging_ftp_address";
-    public final static String PREF_LOGGING_FTP_USER = "pref_logging_ftp_user";
-    public final static String PREF_LOGGING_FTP_PW = "pref_logging_ftp_pw";
+    public final static String PREF_FTP_ADDRESS = "pref_ftp_address";
+    public final static String PREF_FTP_USER = "pref_ftp_user";
+    public final static String PREF_FTP_PW = "pref_ftp_pw";
     public final static String PREF_LOGGING_RATE = "pref_logging_rate";
     public final static String PREF_LOGGING_UPDATE = "pref_logging_update";
     public final static String PREF_LOGGING_LENGTH = "pref_logging_length";
     public final static String PREF_LOGGING_HEADERS = "pref_logging_headers";
+    public final static String PREF_LOGGING_TIME = "pref_logging_time";
 
     public final static String PREF_CAPTURE_CAMERA = "pref_capture_camera";
 

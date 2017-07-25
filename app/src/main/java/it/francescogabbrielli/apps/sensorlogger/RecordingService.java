@@ -144,9 +144,11 @@ public class RecordingService extends IntentService {
                     long length = Long.parseLong(
                             prefs.getString(Util.PREF_LOGGING_LENGTH, "5000"));
 
+                    boolean flagTime = prefs.getBoolean(Util.PREF_LOGGING_TIME, false);
                     StringBuilder bb = new StringBuilder();
                     if (prefs.getBoolean(Util.PREF_LOGGING_HEADERS, false)) {
-                        bb.append("Time");
+                        if (flagTime)
+                            bb.append("Time");
                         for (Sensor s : sensors) {
                             String n = Util.getSensorName(s);
                             bb.append(",").append(n).append(" X");
@@ -154,6 +156,8 @@ public class RecordingService extends IntentService {
                             bb.append(",").append(n).append(" Z");
                         }
                         bb.append('\n');
+                        if (!flagTime)
+                            bb.deleteCharAt(0);
                     }
 
 
@@ -182,15 +186,19 @@ public class RecordingService extends IntentService {
                             }
 
                             StringBuilder sb = new StringBuilder();
-                            sb.append(String.valueOf((t - start) / 1000f));
+                            if (flagTime)
+                                sb.append(String.valueOf((t - start) / 1000f));
                             for (Sensor s : sensors) {
                                 SensorEvent event = readings[s.getType()];
+                                Log.d(TAG, event!=null ? Util.getSensorName(event.sensor)+": "+event.values.length : "?");
                                 if (event != null)
-                                    for (float v : event.values)
-                                        sb.append(',').append(String.format("%2.5f", v));
+                                    for (int i=0;i<event.values.length;i++)
+                                        sb.append(',').append(String.format("%2.5f", event.values[i]));
                                 else
                                     sb.append(",,,");
                             }
+                            if (!flagTime)
+                                sb.deleteCharAt(0);
                             buffer.add(new BufferLine(t, sb));
 
                             long overhead = SystemClock.elapsedRealtime() - t;

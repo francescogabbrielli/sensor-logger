@@ -24,9 +24,9 @@ public class FTPUploader {
     public FTPUploader(Context context) {
         client = new FTPClient();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        address = prefs.getString(Util.PREF_LOGGING_FTP_ADDRESS, "");
-        user = prefs.getString(Util.PREF_LOGGING_FTP_USER, "");
-        password = prefs.getString(Util.PREF_LOGGING_FTP_PW, "");
+        address = prefs.getString(Util.PREF_FTP_ADDRESS, "");
+        user = prefs.getString(Util.PREF_FTP_USER, "");
+        password = prefs.getString(Util.PREF_FTP_PW, "");
         exec = Executors.newSingleThreadExecutor();
         execute(null);
     }

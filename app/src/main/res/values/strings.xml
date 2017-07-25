@@ -6,13 +6,15 @@
 
     <!-- Strings related to Settings -->
 
-    <!-- Recording settings -->
-    <string name="pref_logging_header">Logging</string>
+    <!-- Settings -> FTP -->
+    <string name="pref_ftp_header">FTP</string>
+    <string name="pref_ftp_title">FTP Server</string>
+    <string name="pref_ftp_address_title">IP address</string>
+    <string name="pref_ftp_user_title">User</string>
+    <string name="pref_ftp_pw_title">Password</string>
 
-    <string name="pref_logging_ftp_title">FTP Server</string>
-    <string name="pref_logging_ftp_address_title">IP address</string>
-    <string name="pref_logging_ftp_user_title">User</string>
-    <string name="pref_logging_ftp_pw_title">Password</string>
+    <!-- Settings -> Logging -->
+    <string name="pref_logging_header">Logging</string>
 
     <string name="pref_logging_rate_title">Sampling rate</string>
     <string name="pref_logging_rate_description">Log new values with a frequency of %s</string>
@@ -20,13 +22,17 @@
     <string name="pref_logging_conf_title">Output Configuration</string>
 
     <string-array name="pref_logging_rate_list_titles">
+        <item>30 fps</item>
         <item>25 fps</item>
+        <item>20 fps</item>
         <item>15 fps</item>
         <item>10 fps</item>
         <item>5 fps</item>
         <item>1 fps</item>
     </string-array>
     <string-array name="pref_logging_rate_list_values">
+        <item>33</item>
+        <item>40</item>
         <item>50</item>
         <item>67</item>
         <item>100</item>
@@ -42,58 +48,32 @@
         <item>1 second</item>
         <item>2 seconds</item>
         <item>5 seconds</item>
+        <item>10 seconds</item>
+        <item>15 seconds</item>
     </string-array>
     <string-array name="pref_logging_update_list_values">
         <item>500</item>
         <item>1000</item>
         <item>2000</item>
         <item>5000</item>
+        <item>10000</item>
+        <item>15000</item>
     </string-array>
 
     <string name="pref_logging_length_title">Update length</string>
     <string name="pref_logging_length_description">The logfile has got values of the last %s</string>
 
     <string name="pref_logging_headers_title">Log headers</string>
-    <string name="pref_logging_headers_description">Print the headers row in the output file</string>
+    <string name="pref_logging_headers_description">[EXPERIMENTAL] Print the headers row in the output file</string>
 
-    <!-- Example settings for Data & Sync -->
+    <string name="pref_logging_time_title">Log time</string>
+    <string name="pref_logging_time_description">Print time in the first column of the output file</string>
+
+    <!-- Settings -> Sensors -->
     <string name="pref_sensors_header">Sensors</string>
-
     <string name="pref_sensors_title_sync_frequency">Sync frequency</string>
-    <string-array name="pref_sync_frequency_titles">
-        <item>15 minutes</item>
-        <item>30 minutes</item>
-        <item>1 hour</item>
-        <item>3 hours</item>
-        <item>6 hours</item>
-        <item>Never</item>
-    </string-array>
-    <string-array name="pref_sync_frequency_values">
-        <item>15</item>
-        <item>30</item>
-        <item>60</item>
-        <item>180</item>
-        <item>360</item>
-        <item>-1</item>
-    </string-array>
 
-    <string-array name="list_preference_entries">
-        <item>Entry 1</item>
-        <item>Entry 2</item>
-        <item>Entry 3</item>
-    </string-array>
-
-    <string-array name="list_preference_entry_values">
-        <item>1</item>
-        <item>2</item>
-        <item>3</item>
-    </string-array>
-
-    <string-array name="multi_select_list_preference_default_value" />
-
-    <string name="pref_title_system_sync_settings">System sync settings</string>
-
-    <!-- Settings for Video Capture -->
+    <!-- Settings -> Video Capture -->
     <string name="pref_capture_header">Video Capture</string>
 
     <string name="pref_capture_camera_title">Camera</string>
@@ -101,6 +81,8 @@
 
     <string name="pref_capture_screen_title">Screen</string>
     <string name="pref_capture_screen_description">Capture device\'s screen</string>
+
+
 
     <string name="pref_title_vibrate">Vibrate</string>
 </resources>
