@@ -4,7 +4,6 @@ import android.app.IntentService;
 import android.content.Intent;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.res.AssetManager;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -29,13 +28,14 @@ public class RecordingService extends IntentService {
 
     private final static String TAG = RecordingService.class.getSimpleName();
 
-    public static final String ACTION_START = "it.francescogabbrielli.apps.sensorlogger.action.START";
-    public static final String ACTION_STOP = "it.francescogabbrielli.apps.sensorlogger.action.STOP";
+    public static final String ACTION_START     = "it.francescogabbrielli.apps.sensorlogger.action.START";
+    public static final String ACTION_STOP      = "it.francescogabbrielli.apps.sensorlogger.action.STOP";
 
-    public static final String BROADCAST_SEND_DATA = "it.francescogabbrielli.apps.sensorlogger.action.BROADCAST_SEND_DATA";
-    public static final String EXTRA_SENSORS_DATA = "it.francescogabbrielli.apps.sensorlogger.extra.SENSOR_BUFFER_LENGTH";
-    public static final String BROADCAST_FTP_ERROR = "it.francescogabbrielli.apps.sensorlogger.action.BROADCAST_FTP_ERROR";
-    public static final String EXTRA_FTP_ERROR = "it.francescogabbrielli.apps.sensorlogger.extra.FTP_ERROR";
+    public static final String BROADCAST_SENSORS_DATA       = "it.francescogabbrielli.apps.sensorlogger.action.BROADCAST_SENSORS_DATA";
+    public static final String EXTRA_SENSORS_DATA           = "it.francescogabbrielli.apps.sensorlogger.extra.SENSORS_DATA";
+    public static final String BROADCAST_RECORDING_ERROR    = "it.francescogabbrielli.apps.sensorlogger.action.BROADCAST_RECORDING_ERROR";
+    public static final String EXTRA_RECORDING_ERROR        = "it.francescogabbrielli.apps.sensorlogger.extra.RECORDING_ERROR";
+
 
     private Properties defaults;
 
@@ -168,12 +168,11 @@ public class RecordingService extends IntentService {
                     if (prefs.getBoolean(Util.PREF_LOGGING_HEADERS, false)) {
                         if (flagTime)
                             bb.append("Time");
-                        // TODO: use Util method to determine length
                         for (Sensor s : sensors) {
                             String n = Util.getSensorName(s);
-                            bb.append(",").append(n).append(" X");
-                            bb.append(",").append(n).append(" Y");
-                            bb.append(",").append(n).append(" Z");
+                            int l = Util.getSensorMaxLength(s);
+                            for (int i=0;i<l;i++)
+                                bb.append(",").append(n).append(" ").append(Util.DATA_HEADERS[i]);
                         }
                         bb.append('\n');
                         if (!flagTime)
@@ -198,7 +197,7 @@ public class RecordingService extends IntentService {
                                 }
 
                                 lastWrite += interval;
-                                Intent intent = new Intent(BROADCAST_SEND_DATA);
+                                Intent intent = new Intent(BROADCAST_SENSORS_DATA);
                                 intent.putExtra(EXTRA_SENSORS_DATA, bb.toString());
                                 LocalBroadcastManager.getInstance(RecordingService.this).sendBroadcast(intent);
                                 Log.d(TAG, "Buffer size: " + bb.length());
@@ -210,11 +209,12 @@ public class RecordingService extends IntentService {
                                 sb.append(String.valueOf((t - start) / 1000f));
                             for (Sensor s : sensors) {
                                 SensorEvent event = readings[s.getType()];
-                                if (event != null)
-                                    for (int i=0;i<event.values.length;i++)
-                                        sb.append(',').append(String.format("%2.5f", event.values[i]));
-                                else
-                                    sb.append(",,,");
+                                int l = Util.getSensorMaxLength(s);
+                                for (int i=0; i<l; i++) {
+                                    sb.append(',');
+                                    if (event!=null && i<event.values.length)
+                                        sb.append(String.format("%2.5f", event.values[i]));
+                                }
                             }
                             if (!flagTime)
                                 sb.deleteCharAt(0);
@@ -228,8 +228,8 @@ public class RecordingService extends IntentService {
                     } catch (Exception e) {
 
                         Log.e(RecordingService.class.getSimpleName(), "Sensor recording error", e);
-                        Intent intent = new Intent(BROADCAST_FTP_ERROR);
-                        intent.putExtra(EXTRA_FTP_ERROR, e.getMessage());
+                        Intent intent = new Intent(BROADCAST_RECORDING_ERROR);
+                        intent.putExtra(EXTRA_RECORDING_ERROR, e.getMessage());
                         LocalBroadcastManager.getInstance(RecordingService.this).sendBroadcast(intent);
                         handleStop();
 
@@ -240,6 +240,7 @@ public class RecordingService extends IntentService {
                                 sensorManager.unregisterListener(listener, s);
 
                     }
+
                 }
 
             }.start();

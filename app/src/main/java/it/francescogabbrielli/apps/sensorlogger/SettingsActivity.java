@@ -145,13 +145,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setupActionBar();
-        defaults = new Properties();
-        try{
-            defaults.load(getAssets().open("defaults.properties"));
-            Log.d("Settings", "Defaults loaded: "+defaults.toString());
-        } catch (Exception e) {
-            Log.e("Settings", "Error loading defaults", e);
-        }
+        defaults = Util.loadDefaults(this);
     }
 
     /**

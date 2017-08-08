@@ -9,6 +9,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
 import android.media.AudioManager;
+import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
@@ -25,9 +26,11 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import java.io.File;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Properties;
 
 public class MainActivity extends AppCompatActivity implements
         CompoundButton.OnCheckedChangeListener,
@@ -35,8 +38,6 @@ public class MainActivity extends AppCompatActivity implements
 
     private final static String TAG = MainActivity.class.getSimpleName();
 
-    private final static int REQUEST_EXTERNAL_STORAGE = 1;
-    private final static int REQUEST_CAMERA = 2;
     private final static int REQUEST_PERMISSIONS = 3;
 
     private BroadcastReceiver receiver;
@@ -46,9 +47,12 @@ public class MainActivity extends AppCompatActivity implements
     private CameraPreview cameraPreview;
     private Camera.ShutterCallback shutterCallback;
 
-    private FTPUploader uploader;
+    private LogFileWriter fileWriter;
+    private LogFTPUploader ftpUploader;
 
     private SharedPreferences prefs;
+    private Properties defaults;
+    private String filenameData, filenameFrame;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,40 +68,43 @@ public class MainActivity extends AppCompatActivity implements
         receiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                if (RecordingService.BROADCAST_SEND_DATA.equals(intent.getAction())) {
+                if (RecordingService.BROADCAST_SENSORS_DATA.equals(intent.getAction())) {
                     final byte[] sensorsData =
                             intent.getStringExtra(RecordingService.EXTRA_SENSORS_DATA).getBytes();
-                    try {
-                        Camera camera = cameraHandlerThread.getCamera();
-                        camera.startPreview();
-                        camera.takePicture(shutterCallback, null, new Camera.PictureCallback() {
-                            @Override
-                            public void onPictureTaken(final byte[] imageData, final Camera camera) {
-                                send(imageData, sensorsData, new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        camera.startPreview();
-                                    }
-                                });
-                            }
-                        });
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error taking picture", e);
-                    }
-                } else if(RecordingService.BROADCAST_FTP_ERROR.equals(intent.getAction())) {
+
+                    if (cameraHandlerThread!=null)
+                        try {
+                            Camera camera = cameraHandlerThread.getCamera();
+                            camera.startPreview();
+                            camera.takePicture(shutterCallback, null, new Camera.PictureCallback() {
+                                @Override
+                                public void onPictureTaken(final byte[] imageData, final Camera camera) {
+                                    log(imageData, sensorsData, camera);
+                                }
+                            });
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error taking picture", e);
+                        }
+                    else
+                        log(null, sensorsData, null);
+
+                } else if(RecordingService.BROADCAST_RECORDING_ERROR.equals(intent.getAction())) {
                     ToggleButton b = (ToggleButton) findViewById(R.id.btn_rec);
                     b.setChecked(false);
                 }
             }
         };
 
+        defaults = Util.loadDefaults(this);
+
         filter = new IntentFilter();
-        filter.addAction(RecordingService.BROADCAST_SEND_DATA);
-        filter.addAction(RecordingService.BROADCAST_FTP_ERROR);
+        filter.addAction(RecordingService.BROADCAST_SENSORS_DATA);
+        filter.addAction(RecordingService.BROADCAST_RECORDING_ERROR);
 
         final ToggleButton b = (ToggleButton) findViewById(R.id.btn_rec);
         b.setChecked(prefs.getBoolean(Util.PREF_RECORDING, false));
         b.setOnCheckedChangeListener(this);
+
 
     }
 
@@ -123,10 +130,51 @@ public class MainActivity extends AppCompatActivity implements
                 } : null;
     }
 
+    /** Log data to targets */
+    private void log(byte[] imageData, byte[] sensorsData, final Camera camera) {
+
+        // Sync the callbacks
+        final SyncCallbackThread syncCallbackThread = new SyncCallbackThread(new Runnable() {
+            @Override
+            public void run() {
+                camera.startPreview();
+            }
+        });
+        Runnable syncCallback = new Runnable() {
+            @Override
+            public void run() {
+                syncCallbackThread.releaseLock();
+            }
+        };
+
+        // Local file
+        if (fileWriter != null)
+            try {
+                syncCallbackThread.addLock();
+                fileWriter.send(sensorsData, filenameData, null);
+                if (imageData!=null)
+                    fileWriter.send(imageData, filenameFrame, syncCallback);
+            } catch(Exception e) {
+                Log.e(TAG, "Error writing samples to local file: " + e.getMessage(), e);
+            }
+
+        // FTP
+        if (ftpUploader != null)
+            try {
+                syncCallbackThread.addLock();
+                ftpUploader.send(sensorsData, filenameData, null);
+                if (imageData!=null)
+                    ftpUploader.send(imageData, filenameFrame, syncCallback);
+            } catch (Exception e) {
+                Log.e(TAG, "Error sending samples through FTP: " + e.getMessage(), e);
+            }
+
+        if (imageData!=null)
+            syncCallbackThread.start();
+    }
+
     protected void onPause() {
         super.onPause();
-//        if (camera!=null)
-//            camera.release();
     }
 
     @Override
@@ -160,20 +208,38 @@ public class MainActivity extends AppCompatActivity implements
     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
         if(isChecked) {
             LocalBroadcastManager.getInstance(this).registerReceiver(receiver, filter);
-            uploader = new FTPUploader(getApplicationContext());
-            uploader.connect();
+            filenameData = defaults.getProperty("filename_data");
+            filenameFrame = defaults.getProperty("filename_frame");
+            if (prefs.getBoolean(Util.PREF_LOGGING_SAVE, false)) {
+                fileWriter = new LogFileWriter(new File(Environment.getExternalStorageDirectory(), getString(R.string.app_folder)));
+            }
+            if (prefs.getBoolean(Util.PREF_FTP, false)) {
+                ftpUploader = new LogFTPUploader(getApplicationContext());
+                ftpUploader.connect();
+            }
             RecordingService.startRecording(this);
         } else {
             LocalBroadcastManager.getInstance(this).unregisterReceiver(receiver);
-            if (uploader!=null)
-                uploader.close();
+            if (fileWriter!=null) {
+                fileWriter.close();
+                fileWriter = null;
+            }
+            if (ftpUploader !=null) {
+                ftpUploader.close();
+                ftpUploader = null;
+            }
             RecordingService.stopRecording(this);
 
             // restart preview ???
-            cameraHandlerThread.restart();
+            if (cameraHandlerThread!=null)
+                cameraHandlerThread.restart();
         }
     }
 
+
+    //<editor-fold desc="Permissions">
+    // ----------------------------------- PERMISSIONS MANAGEMENT ----------------------------------
+    //
     /**
      * Checks if the app has the required permissions, as per current setttings.
      *
@@ -213,62 +279,45 @@ public class MainActivity extends AppCompatActivity implements
 
     }
 
-
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-
         switch (requestCode) {
-//            case REQUEST_EXTERNAL_STORAGE:
-//                if (grantResults.length > 0
-//                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-//                    new File(Environment.getExternalStorageDirectory(), getString(R.string.app_folder)).mkdirs();
-//                }
-//                break;
-//            case REQUEST_CAMERA:
-//                if (grantResults.length > 0
-//                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-//                    setupCamera();
-//                }
-//                break;
             case REQUEST_PERMISSIONS:
                 for (int i=0;i<grantResults.length;i++)
-                    if (grantResults[i] == PackageManager.PERMISSION_GRANTED)
+                    if (grantResults[i] == PackageManager.PERMISSION_GRANTED) {
                         onPermissionGranted(permissions[i]);
-                    else
+                    } else {
+                        Toast.makeText(this, R.string.alert_permission_denied, Toast.LENGTH_LONG).show();
                         onPermissionDenied(permissions[i]);
+                    }
                 break;
         }
-
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
     protected void onPermissionGranted(String permission) {
         if (Manifest.permission.CAMERA.equals(permission))
             setupCamera();
-//        else if(Manifest.permission.INTERNET.equals(permission))
-
+        else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission))
+            new File(Environment.getExternalStorageDirectory(), getString(R.string.app_folder)).mkdirs();
     }
 
     protected void onPermissionDenied(String permission) {
-        Toast.makeText(this, R.string.alert_permission_denied, Toast.LENGTH_LONG).show();
         if (Manifest.permission.CAMERA.equals(permission))
-            prefs.edit().putBoolean(Util.PREF_CAPTURE_CAMERA, false);
+            prefs.edit().putBoolean(Util.PREF_CAPTURE_CAMERA, false).commit();
         else if (Manifest.permission.INTERNET.equals(permission))
-            prefs.edit().putBoolean(Util.PREF_FTP, false);
+            prefs.edit().putBoolean(Util.PREF_FTP, false).commit();
         else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission))
-            prefs.edit().putBoolean(Util.PREF_LOGGING_SAVE, false);
+            prefs.edit().putBoolean(Util.PREF_LOGGING_SAVE, false).commit();
     }
+    //
+    // ----------------------------------- ---------------------- ----------------------------------
+    //</editor-fold>
 
-    private void send(byte[] imageData, byte[] sensorsData, Runnable callback) {
-        if (uploader != null)
-            try {
-                uploader.send(sensorsData, "sensors.csv", null);
-                uploader.send(imageData, "frame.jpg", callback);
-            } catch (Exception e) {
-                Log.e(TAG, "Error sending data: " + e.getMessage(), e);
-            }
-    }
 
+    //<editor-fold desc="Camera Surface">
+    // ---------------------------------- CAMERA SURFACE CALLBACKS ---------------------------------
+    //
     public void surfaceCreated(SurfaceHolder holder) {
         cameraHandlerThread.openCamera(holder, null);
 //        new Runnable() {
@@ -321,5 +370,7 @@ public class MainActivity extends AppCompatActivity implements
     public void surfaceDestroyed(SurfaceHolder holder) {
         cameraHandlerThread.closeCamera();
     }
-
+    //
+    // ----------------------------------- ---------------------- ----------------------------------
+    //</editor-fold>
 }

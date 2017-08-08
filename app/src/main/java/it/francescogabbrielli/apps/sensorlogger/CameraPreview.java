@@ -9,6 +9,10 @@ import android.view.SurfaceView;
 
 import java.io.IOException;
 
+/**
+ * XXX: all callbacks moved to activty...
+ * TODO: refactor
+ */
 public class CameraPreview extends SurfaceView {
 
     public CameraPreview(MainActivity activity) {

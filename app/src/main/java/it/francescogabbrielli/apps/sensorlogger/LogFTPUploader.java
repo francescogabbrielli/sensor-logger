@@ -12,9 +12,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class FTPUploader {
+public class LogFTPUploader extends LogTarget {
 
-    private final static String TAG = FTPUploader.class.getSimpleName();
+    private final static String TAG = LogFTPUploader.class.getSimpleName();
 
     private ExecutorService exec;
 
@@ -26,12 +26,10 @@ public class FTPUploader {
      * Creates a new FTP uploader, that is a wrapper around Apache Commons FTPClient with threading
      * support and configuration linked to application settings
      *
-     * TODO: add a kind of listener interface support instead of single callbacks
-     *
      * @param context
      *              the application context
      */
-    public FTPUploader(Context context) {
+    public LogFTPUploader(Context context) {
         client = new FTPClient();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         address = prefs.getString(Util.PREF_FTP_ADDRESS, "");
@@ -71,6 +69,7 @@ public class FTPUploader {
     /**
      * Closes current connection
      */
+    @Override
     public void close() {
         if (client!=null && client.isConnected()) {
             exec.execute(new Runnable() {
@@ -107,6 +106,7 @@ public class FTPUploader {
      * @param filename
      *          the filename to write to
      */
+    @Override
     public void send(final byte[] data, final String filename, final Runnable callback) {
         if (client.isConnected())
             exec.execute(new Runnable() {
@@ -120,13 +120,13 @@ public class FTPUploader {
                             callback.run();
                         Log.d(TAG, "Data written to "+filename);
                     } catch (Exception e) {
-                        Log.e(FTPUploader.class.getSimpleName(), "Transfer Error", e);
+                        Log.e(TAG, "Transfer Error", e);
                     } finally {
                         try {
                             out.close();
                             client.completePendingCommand();
                         } catch (Exception e) {
-                            Log.e(FTPUploader.class.getSimpleName(), "Unexpected error", e);
+                            Log.e(LogFTPUploader.class.getSimpleName(), "Unexpected error", e);
                         }
                     }
                 }

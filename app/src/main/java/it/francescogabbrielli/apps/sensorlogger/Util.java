@@ -7,15 +7,21 @@ import android.hardware.Camera;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
 import android.os.Build;
+import android.util.Log;
 import android.view.Surface;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 public class Util {
+
+    private final static String TAG = Util.class.getSimpleName();
 
     public final static String PREF_RECORDING       = "pref_recording";
 
@@ -33,6 +39,36 @@ public class Util {
 
     public final static String PREF_CAPTURE_CAMERA  = "pref_capture_camera";
     public final static String PREF_CAPTURE_SOUND   = "pref_capture_sound";
+
+    private final static Map<Sensor, Integer> DATA_LENGTHS = new LinkedHashMap<>();
+    public final static String[] DATA_HEADERS = new String[] {
+            "X", "Y", "Z", "Param1", "Param2", "Param3"
+    };
+
+
+    /**
+     * Load dedaults from config file (asynchronously)
+     *
+     * @param context
+     *              application context
+     * @return
+     *          the default properties passed (still not populated!) (TODO: implement callback)
+     */
+    public static Properties loadDefaults(final Context context) {
+        final Properties defaults = new Properties();
+        new Thread() {
+            @Override
+            public void run() {
+                try{
+                    defaults.load(context.getAssets().open("defaults.properties"));
+                    Log.d(TAG, "Defaults loaded: "+defaults.toString());
+                } catch (Exception e) {
+                    Log.e(TAG, "Error loading defaults", e);
+                }
+            }
+        }.start();
+        return defaults;
+    }
 
     /**
      * Retrieve all available sensors sorted alphabetically
@@ -67,22 +103,27 @@ public class Util {
     }
 
     public final static int getSensorMaxLength(Sensor sensor) {
-        Method[] methodList = Sensor.class.getDeclaredMethods();
-        int m_count = methodList.length;
-        for (int j = 0; j < m_count; j++) {
-            Method method = methodList[j];
-            if (!method.getName().equals("getMaxLengthValuesArray"))
-                continue;
-            method.setAccessible(true);
-            try {
-                int values_length = (Integer) method.invoke(sensor, sensor, Build.VERSION.SDK_INT);
-//                Log.e(TAG,"value length is "+values_length);
-                return values_length;
-            } catch (Exception e) {
-                e.printStackTrace();
+        Integer ret = DATA_LENGTHS.get(sensor);
+        if (ret==null) {
+            Method[] methodList = Sensor.class.getDeclaredMethods();
+            int m_count = methodList.length;
+            for (int j = 0; j < m_count; j++) {
+                Method method = methodList[j];
+                if (!method.getName().equals("getMaxLengthValuesArray"))
+                    continue;
+                method.setAccessible(true);
+                try {
+                    ret = Math.min(
+                            DATA_HEADERS.length,
+                            (Integer) method.invoke(sensor, sensor, Build.VERSION.SDK_INT));
+                    Log.v(TAG, getSensorName(sensor)+" value length is "+ret);
+                    DATA_LENGTHS.put(sensor, ret);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
-        return -1;
+        return ret!=null ? ret : -1;
     }
 
     public static void setCameraDisplayOrientation(Activity activity,
