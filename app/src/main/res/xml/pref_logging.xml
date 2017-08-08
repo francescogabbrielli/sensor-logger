@@ -1,7 +1,6 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
     <ListPreference
-        android:defaultValue="100"
         android:key="pref_logging_rate"
         android:entries="@array/pref_logging_rate_list_titles"
         android:entryValues="@array/pref_logging_rate_list_values"
@@ -11,7 +10,6 @@
         />
 
     <ListPreference
-        android:defaultValue="1000"
         android:key="pref_logging_update"
         android:entries="@array/pref_logging_update_list_titles"
         android:entryValues="@array/pref_logging_update_list_values"
@@ -21,7 +19,6 @@
         />
 
     <ListPreference
-        android:defaultValue="5000"
         android:key="pref_logging_length"
         android:entries="@array/pref_logging_update_list_titles"
         android:entryValues="@array/pref_logging_update_list_values"
@@ -41,5 +38,19 @@
         android:key="pref_logging_time"
         android:title="@string/pref_logging_time_title"
         android:summary="@string/pref_logging_time_description"/>
+
+    <CheckBoxPreference
+        android:key="pref_logging_timestamp"
+        android:title="@string/pref_logging_timestamp_title"
+        android:summary="@string/pref_logging_timestamp_description"
+        android:defaultValue="false"
+        />
+
+    <SwitchPreference
+        android:key="pref_logging_save"
+        android:title="@string/pref_logging_save_title"
+        android:summary="@string/pref_logging_save_description"
+        android:defaultValue="false"
+        />
 
 </PreferenceScreen>

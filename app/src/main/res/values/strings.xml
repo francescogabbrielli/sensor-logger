@@ -8,7 +8,9 @@
 
     <!-- Settings -> FTP -->
     <string name="pref_ftp_header">FTP</string>
-    <string name="pref_ftp_title">FTP Server</string>
+
+    <string name="pref_ftp_title">Enable FTP Upload</string>
+    <string name="pref_ftp_description">If this is enabled, the data will be logged through FTP to a remote server</string>
     <string name="pref_ftp_address_title">IP address</string>
     <string name="pref_ftp_user_title">User</string>
     <string name="pref_ftp_pw_title">Password</string>
@@ -69,12 +71,18 @@
     <string name="pref_logging_time_title">Log time</string>
     <string name="pref_logging_time_description">Print time in the first column of the output file</string>
 
+    <string name="pref_logging_timestamp_title">Filename timestamp</string>
+    <string name="pref_logging_timestamp_description">Append timestamp to the output filename (if any)</string>
+
+    <string name="pref_logging_save_title">Save data to a local file</string>
+    <string name="pref_logging_save_description">If this is enabled, the data will be saved in the local filesystem</string>
+
     <!-- Settings -> Sensors -->
     <string name="pref_sensors_header">Sensors</string>
     <string name="pref_sensors_title_sync_frequency">Sync frequency</string>
 
-    <!-- Settings -> Video Capture -->
-    <string name="pref_capture_header">Video Capture</string>
+    <!-- Settings -> Frame Capture -->
+    <string name="pref_capture_header">Frame Capture</string>
 
     <string name="pref_capture_camera_title">Camera</string>
     <string name="pref_capture_camera_description">Capture frames from the main camera present on the device</string>
@@ -82,7 +90,8 @@
     <string name="pref_capture_screen_title">Screen</string>
     <string name="pref_capture_screen_description">Capture device\'s screen</string>
 
+    <string name="pref_capture_sound_title">Play sound</string>
+    <string name="pref_capture_sound_description">Play a shutter-like sound whenever a frame is captured</string>
 
-
-    <string name="pref_title_vibrate">Vibrate</string>
+    <string name="alert_permission_denied">WARNING! Denying the permission will set this preference back to its default</string>
 </resources>

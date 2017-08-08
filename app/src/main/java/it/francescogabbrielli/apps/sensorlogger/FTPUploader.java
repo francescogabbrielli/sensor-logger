@@ -10,6 +10,7 @@ import org.apache.commons.net.ftp.FTPClient;
 import java.io.OutputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class FTPUploader {
 
@@ -21,6 +22,15 @@ public class FTPUploader {
 
     private String address, user, password;
 
+    /**
+     * Creates a new FTP uploader, that is a wrapper around Apache Commons FTPClient with threading
+     * support and configuration linked to application settings
+     *
+     * TODO: add a kind of listener interface support instead of single callbacks
+     *
+     * @param context
+     *              the application context
+     */
     public FTPUploader(Context context) {
         client = new FTPClient();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
@@ -28,18 +38,13 @@ public class FTPUploader {
         user = prefs.getString(Util.PREF_FTP_USER, "");
         password = prefs.getString(Util.PREF_FTP_PW, "");
         exec = Executors.newSingleThreadExecutor();
-        execute(null);
     }
 
-    public void execute(final Runnable command) {
-
-        if (client.isConnected()) {
-
-            if(command!=null)
-                exec.execute(command);
-
-        } else {
-
+    /**
+     * Connects to the server
+     */
+    public void connect() {
+        if (!client.isConnected())
             exec.execute(new Runnable() {
                 @Override
                 public void run() {
@@ -52,27 +57,46 @@ public class FTPUploader {
                     } catch (Exception e) {
                         Log.e(TAG, "Can't connect to " + address + ", user: " + user);
                     }
-                    if (command!=null)
-                        command.run();
-                }
-            });
-        }
-    }
-
-    public void close() {
-        exec.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    client.logout();
-                    client.disconnect();
-                    Log.d(TAG, "Client disconnected");
-                } catch (Exception e) {
-                    Log.e(TAG, "Error finalizing FTP connection", e);
-                }
-                exec.shutdown();
             }
         });
+    }
+
+    public void execute(final Runnable command) {
+        if (!client.isConnected())
+            connect();
+        if (command!=null)
+            exec.execute(command);
+    }
+
+    /**
+     * Closes current connection
+     */
+    public void close() {
+        if (client!=null && client.isConnected()) {
+            exec.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        client.logout();
+                        client.disconnect();
+                        Log.d(TAG, "Client disconnected");
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error finalizing FTP connection", e);
+                    }
+                }
+            });
+            new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        exec.awaitTermination(5, TimeUnit.SECONDS);
+                        exec.shutdown();
+                    } catch(InterruptedException e) {
+                        Log.e(TAG, "Unexpected interruption", e);
+                    }
+                }
+            }.start();
+        }
     }
 
     /**
@@ -83,7 +107,7 @@ public class FTPUploader {
      * @param filename
      *          the filename to write to
      */
-    public void send(final byte[] data, final String filename) {
+    public void send(final byte[] data, final String filename, final Runnable callback) {
         if (client.isConnected())
             exec.execute(new Runnable() {
                 @Override
@@ -92,27 +116,30 @@ public class FTPUploader {
                     try {
                         out = client.storeFileStream(filename);
                         out.write(data);
+                        if (callback!=null)
+                            callback.run();
                         Log.d(TAG, "Data written to "+filename);
                     } catch (Exception e) {
-                        Log.e(FTPUploader.class.getSimpleName(), "FTP Error", e);
+                        Log.e(FTPUploader.class.getSimpleName(), "Transfer Error", e);
                     } finally {
                         try {
                             out.close();
                             client.completePendingCommand();
+                        } catch (Exception e) {
+                            Log.e(FTPUploader.class.getSimpleName(), "Unexpected error", e);
                         }
-                        catch (Exception e) {}
                     }
                 }
             });
-        else {
-            Log.d(TAG, "Retry");
-            execute(new Runnable() {
-                @Override
-                public void run() {
-                    send(data, filename);
-                }
-            });
-        }
+//        else {
+//            Log.d(TAG, "Retry");
+//            execute(new Runnable() {
+//                @Override
+//                public void run() {
+//                    send(data, filename);
+//                }
+//            });
+//        }
     }
 
 }

@@ -15,4 +15,10 @@
         android:title="@string/pref_capture_screen_title"
         android:summary="@string/pref_capture_screen_description"/>
 
+    <SwitchPreference
+        android:key="pref_capture_sound"
+        android:defaultValue="false"
+        android:title="@string/pref_capture_sound_title"
+        android:summary="@string/pref_capture_sound_description"/>
+
 </PreferenceScreen>

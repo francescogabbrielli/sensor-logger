@@ -24,6 +24,7 @@ import android.util.Log;
 import android.view.MenuItem;
 
 import java.util.List;
+import java.util.Properties;
 
 /**
  * A {@link PreferenceActivity} that presents a set of application settings. On
@@ -118,6 +119,15 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
      * @see #sBindPreferenceSummaryToValueListener
      */
     private static void bindPreferenceSummaryToValue(Preference preference) {
+
+        String def = defaults.getProperty(preference.getKey());
+
+        // set defaults!
+        if (def!=null)
+            PreferenceManager.getDefaultSharedPreferences(preference.getContext())
+                    .edit().putString(preference.getKey(), def).commit();
+
+
         // Set the listener to watch for value changes.
         preference.setOnPreferenceChangeListener(sBindPreferenceSummaryToValueListener);
 
@@ -126,13 +136,22 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         sBindPreferenceSummaryToValueListener.onPreferenceChange(preference,
                 PreferenceManager
                         .getDefaultSharedPreferences(preference.getContext())
-                        .getString(preference.getKey(), ""));
+                        .getString(preference.getKey(), def!=null?def:""));
     }
+
+    private static Properties defaults;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setupActionBar();
+        defaults = new Properties();
+        try{
+            defaults.load(getAssets().open("defaults.properties"));
+            Log.d("Settings", "Defaults loaded: "+defaults.toString());
+        } catch (Exception e) {
+            Log.e("Settings", "Error loading defaults", e);
+        }
     }
 
     /**
@@ -164,7 +183,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
     }
 
     /**
-     * This method stops fragment injection in malicious applications.
+     * Th-is method stops fragment injection in malicious applications.
      * Make sure to deny any unknown fragments here.
      */
     protected boolean isValidFragment(String fragmentName) {
@@ -224,7 +243,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
             PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(getActivity());
             screen.setOrderingAsAdded(true);
 
-            List<Sensor> sensors = Util.getSensors((SensorManager) getActivity().getSystemService(SENSOR_SERVICE));
+            List<Sensor> sensors = Util.getSensors(getActivity());
             for (Sensor s : sensors) {
                 CheckBoxPreference p = new CheckBoxPreference(getActivity());
                 p.setTitle(Util.getSensorName(s));

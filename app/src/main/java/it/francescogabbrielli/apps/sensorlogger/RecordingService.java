@@ -4,6 +4,7 @@ import android.app.IntentService;
 import android.content.Intent;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.res.AssetManager;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -16,6 +17,7 @@ import android.util.Log;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.ListIterator;
+import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -35,8 +37,22 @@ public class RecordingService extends IntentService {
     public static final String BROADCAST_FTP_ERROR = "it.francescogabbrielli.apps.sensorlogger.action.BROADCAST_FTP_ERROR";
     public static final String EXTRA_FTP_ERROR = "it.francescogabbrielli.apps.sensorlogger.extra.FTP_ERROR";
 
+    private Properties defaults;
+
     public RecordingService() {
         super("RecordingService");
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        defaults = new Properties();
+        try{
+            defaults.load(getAssets().open("defaults.properties"));
+            Log.d(TAG, "Defaults loaded: "+defaults.toString());
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading defaults", e);
+        }
     }
 
     /**
@@ -138,17 +154,21 @@ public class RecordingService extends IntentService {
                     long start = SystemClock.elapsedRealtime();
                     long lastWrite = start;
                     long delay = Long.parseLong(
-                            prefs.getString(Util.PREF_LOGGING_RATE, "100"));
+                            prefs.getString(Util.PREF_LOGGING_RATE,
+                                    defaults.getProperty(Util.PREF_LOGGING_RATE)));
                     long interval = Long.parseLong(
-                            prefs.getString(Util.PREF_LOGGING_UPDATE, "1000"));
+                            prefs.getString(Util.PREF_LOGGING_UPDATE,
+                                    defaults.getProperty(Util.PREF_LOGGING_UPDATE)));
                     long length = Long.parseLong(
-                            prefs.getString(Util.PREF_LOGGING_LENGTH, "5000"));
+                            prefs.getString(Util.PREF_LOGGING_LENGTH,
+                                    defaults.getProperty(Util.PREF_LOGGING_LENGTH)));
 
                     boolean flagTime = prefs.getBoolean(Util.PREF_LOGGING_TIME, false);
                     StringBuilder bb = new StringBuilder();
                     if (prefs.getBoolean(Util.PREF_LOGGING_HEADERS, false)) {
                         if (flagTime)
                             bb.append("Time");
+                        // TODO: use Util method to determine length
                         for (Sensor s : sensors) {
                             String n = Util.getSensorName(s);
                             bb.append(",").append(n).append(" X");
@@ -163,7 +183,6 @@ public class RecordingService extends IntentService {
 
                     try {
 
-                        //                uploader = new FTPUploader(getApplicationContext());
                         while (prefs.getBoolean(Util.PREF_RECORDING, false)) {
 
                             long t = SystemClock.elapsedRealtime();
@@ -185,12 +204,12 @@ public class RecordingService extends IntentService {
                                 Log.d(TAG, "Buffer size: " + bb.length());
                             }
 
+
                             StringBuilder sb = new StringBuilder();
                             if (flagTime)
                                 sb.append(String.valueOf((t - start) / 1000f));
                             for (Sensor s : sensors) {
                                 SensorEvent event = readings[s.getType()];
-                                Log.d(TAG, event!=null ? Util.getSensorName(event.sensor)+": "+event.values.length : "?");
                                 if (event != null)
                                     for (int i=0;i<event.values.length;i++)
                                         sb.append(',').append(String.format("%2.5f", event.values[i]));

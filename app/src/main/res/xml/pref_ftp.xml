@@ -1,20 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <SwitchPreference
+        android:key="pref_ftp"
+        android:title="@string/pref_ftp_title"
+        android:summary="@string/pref_ftp_description"
+        android:defaultValue="false"
+        />
+
     <EditTextPreference
-        android:inputType="number|numberDecimal"
-        android:digits="0123456789."
+        android:dependency="pref_ftp"
         android:key="pref_ftp_address"
+        android:inputType="number"
+        android:digits="0123456789."
         android:title="@string/pref_ftp_address_title"
         />
     <EditTextPreference
+        android:dependency="pref_ftp"
         android:key="pref_ftp_user"
         android:title="@string/pref_ftp_user_title"
         />
     <EditTextPreference
+        android:dependency="pref_ftp"
+        android:key="pref_ftp_pw"
         android:inputType="textPassword"
         android:password="true"
-        android:key="pref_ftp_pw"
         android:title="@string/pref_ftp_pw_title"
         />
 
