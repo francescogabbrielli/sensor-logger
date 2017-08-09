@@ -35,7 +35,7 @@ public class Util {
     public final static String PREF_LOGGING_HEADERS = "pref_logging_headers";
     public final static String PREF_LOGGING_TIME    = "pref_logging_time";
     public final static String PREF_LOGGING_TIMESTAMP = "pref_logging_timestamp";
-    public final static String PREF_LOGGING_SAVE    = "pref_logging_save";
+    public final static String PREF_LOGGING_LOCAL = "pref_logging_local";
 
     public final static String PREF_CAPTURE_CAMERA  = "pref_capture_camera";
     public final static String PREF_CAPTURE_SOUND   = "pref_capture_sound";

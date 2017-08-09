@@ -2,16 +2,11 @@ package it.francescogabbrielli.apps.sensorlogger;
 
 import android.util.Log;
 
-public class SyncCallbackThread  extends Thread {
+public abstract class SyncCallbackThread  extends Thread {
 
     private final static long SYNC_TIMEOUT = 15000;
 
     private int locks;
-    private Runnable finalCallback;
-
-    public SyncCallbackThread(Runnable callback) {
-        this.finalCallback = callback;
-    }
 
     public synchronized void addLock() {
         locks++;
@@ -36,6 +31,9 @@ public class SyncCallbackThread  extends Thread {
         } catch (InterruptedException ie) {
             //Log.e(TAG, "Log sync interrupted", ie);
         }
-        finalCallback.run();
+        finalRun();
     }
+
+    protected abstract void finalRun();
+
 }

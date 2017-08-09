@@ -27,19 +27,19 @@
         android:positiveButtonText="@null"
         />
 
-    <CheckBoxPreference
+    <SwitchPreference
         android:defaultValue="false"
         android:key="pref_logging_headers"
         android:title="@string/pref_logging_headers_title"
         android:summary="@string/pref_logging_headers_description"/>
 
-    <CheckBoxPreference
+    <SwitchPreference
         android:defaultValue="false"
         android:key="pref_logging_time"
         android:title="@string/pref_logging_time_title"
         android:summary="@string/pref_logging_time_description"/>
 
-    <CheckBoxPreference
+    <SwitchPreference
         android:key="pref_logging_timestamp"
         android:title="@string/pref_logging_timestamp_title"
         android:summary="@string/pref_logging_timestamp_description"
@@ -47,7 +47,7 @@
         />
 
     <SwitchPreference
-        android:key="pref_logging_save"
+        android:key="pref_logging_local"
         android:title="@string/pref_logging_save_title"
         android:summary="@string/pref_logging_save_description"
         android:defaultValue="false"

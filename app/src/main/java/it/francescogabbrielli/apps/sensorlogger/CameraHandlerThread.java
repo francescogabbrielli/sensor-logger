@@ -39,20 +39,24 @@ public class CameraHandlerThread extends HandlerThread {
             public void run() {
                 try {
                     camera = Camera.open();
+                    Log.v(getName(), "on");
                     Camera.Parameters params = camera.getParameters();
                     params.setPreviewSize(1280,720);
                     params.setPictureSize(1280,720);
                     camera.setParameters(params);
+                    Log.v(getName(), "size reset to 1280x720");
 //                    Util.setCameraDisplayOrientation(MainActivity.this, 0, camera);XXX: rotation?
                     camera.setPreviewDisplay(holder);
+                    Log.v(getName(), "display");
                     camera.startPreview();
+                    Log.v(getName(), "start");
                     if (callback!=null)
                         callback.run();
                 } catch (IOException e) {
-                    Log.e("Camera", "Error opening camera", e);
+                    Log.e(getName(), "Error opening camera", e);
                 }
             }
-        }, 100);
+        }, 50);
     }
 
     public void closeCamera(){
@@ -73,7 +77,7 @@ public class CameraHandlerThread extends HandlerThread {
                 try {
                     camera.startPreview();
                 } catch (Throwable t) {
-                    Log.e("Camera", "Restarting preview?", t);
+                    Log.e(getName(), "Restarting preview?", t);
                 }
             }
         },100);

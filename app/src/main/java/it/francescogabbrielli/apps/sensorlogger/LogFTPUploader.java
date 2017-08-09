@@ -107,7 +107,7 @@ public class LogFTPUploader extends LogTarget {
      *          the filename to write to
      */
     @Override
-    public void send(final byte[] data, final String filename, final Runnable callback) {
+    public void send(final byte[] data, final String filename, final SyncCallbackThread scThread) {
         if (client.isConnected())
             exec.execute(new Runnable() {
                 @Override
@@ -116,8 +116,8 @@ public class LogFTPUploader extends LogTarget {
                     try {
                         out = client.storeFileStream(filename);
                         out.write(data);
-                        if (callback!=null)
-                            callback.run();
+                        if (scThread!=null)
+                            scThread.releaseLock();
                         Log.d(TAG, "Data written to "+filename);
                     } catch (Exception e) {
                         Log.e(TAG, "Transfer Error", e);

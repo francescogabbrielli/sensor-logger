@@ -14,8 +14,11 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
@@ -127,11 +130,11 @@ public class RecordingService extends IntentService {
 
         if (!prefs.getBoolean(Util.PREF_RECORDING, false)) {
 
-            final SensorEvent[] readings = new SensorEvent[255];
+            final Map<Integer, SensorEvent> readings = new HashMap<>();
             final SensorEventListener listener = new SensorEventListener() {
                 @Override
                 public void onSensorChanged(SensorEvent event) {
-                    readings[event.sensor.getType()] = event;
+                    readings.put(event.sensor.getType(), event);
                 }
                 @Override
                 public void onAccuracyChanged(Sensor sensor, int accuracy) {
@@ -208,7 +211,7 @@ public class RecordingService extends IntentService {
                             if (flagTime)
                                 sb.append(String.valueOf((t - start) / 1000f));
                             for (Sensor s : sensors) {
-                                SensorEvent event = readings[s.getType()];
+                                SensorEvent event = readings.get(s.getType());
                                 int l = Util.getSensorMaxLength(s);
                                 for (int i=0; i<l; i++) {
                                     sb.append(',');

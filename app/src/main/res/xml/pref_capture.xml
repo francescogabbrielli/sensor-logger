@@ -2,13 +2,13 @@
 
     <!-- A 'parent' preference, which enables/disables child preferences (below)
          when checked/unchecked. -->
-    <CheckBoxPreference
+    <SwitchPreference
         android:defaultValue="false"
         android:key="pref_capture_camera"
         android:title="@string/pref_capture_camera_title"
         android:summary="@string/pref_capture_camera_description"/>
 
-    <CheckBoxPreference
+    <SwitchPreference
         android:enabled="false"
         android:defaultValue="false"
         android:key="pref_capture_screen"

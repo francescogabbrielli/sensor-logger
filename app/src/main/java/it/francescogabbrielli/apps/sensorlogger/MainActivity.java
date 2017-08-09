@@ -83,6 +83,7 @@ public class MainActivity extends AppCompatActivity implements
                                 }
                             });
                         } catch (Exception e) {
+                            log(null, sensorsData, null);
                             Log.e(TAG, "Error taking picture", e);
                         }
                     else
@@ -133,27 +134,22 @@ public class MainActivity extends AppCompatActivity implements
     /** Log data to targets */
     private void log(byte[] imageData, byte[] sensorsData, final Camera camera) {
 
-        // Sync the callbacks
-        final SyncCallbackThread syncCallbackThread = new SyncCallbackThread(new Runnable() {
+        // Sync the callbacks (for restarting the camera preview)
+        final SyncCallbackThread syncCallbackThread = new SyncCallbackThread() {
             @Override
-            public void run() {
+            public void finalRun() {
                 camera.startPreview();
-            }
-        });
-        Runnable syncCallback = new Runnable() {
-            @Override
-            public void run() {
-                syncCallbackThread.releaseLock();
             }
         };
 
         // Local file
         if (fileWriter != null)
             try {
-                syncCallbackThread.addLock();
                 fileWriter.send(sensorsData, filenameData, null);
-                if (imageData!=null)
-                    fileWriter.send(imageData, filenameFrame, syncCallback);
+                if (imageData!=null) {
+                    syncCallbackThread.addLock();
+                    fileWriter.send(imageData, filenameFrame, syncCallbackThread);
+                }
             } catch(Exception e) {
                 Log.e(TAG, "Error writing samples to local file: " + e.getMessage(), e);
             }
@@ -161,10 +157,11 @@ public class MainActivity extends AppCompatActivity implements
         // FTP
         if (ftpUploader != null)
             try {
-                syncCallbackThread.addLock();
                 ftpUploader.send(sensorsData, filenameData, null);
-                if (imageData!=null)
-                    ftpUploader.send(imageData, filenameFrame, syncCallback);
+                if (imageData!=null) {
+                    syncCallbackThread.addLock();
+                    ftpUploader.send(imageData, filenameFrame, syncCallbackThread);
+                }
             } catch (Exception e) {
                 Log.e(TAG, "Error sending samples through FTP: " + e.getMessage(), e);
             }
@@ -210,7 +207,7 @@ public class MainActivity extends AppCompatActivity implements
             LocalBroadcastManager.getInstance(this).registerReceiver(receiver, filter);
             filenameData = defaults.getProperty("filename_data");
             filenameFrame = defaults.getProperty("filename_frame");
-            if (prefs.getBoolean(Util.PREF_LOGGING_SAVE, false)) {
+            if (prefs.getBoolean(Util.PREF_LOGGING_LOCAL, false)) {
                 fileWriter = new LogFileWriter(new File(Environment.getExternalStorageDirectory(), getString(R.string.app_folder)));
             }
             if (prefs.getBoolean(Util.PREF_FTP, false)) {
@@ -253,7 +250,7 @@ public class MainActivity extends AppCompatActivity implements
             requests.add(Manifest.permission.CAMERA);
         if(prefs.getBoolean(Util.PREF_FTP, false))
             requests.add(Manifest.permission.INTERNET);
-        if(prefs.getBoolean(Util.PREF_LOGGING_SAVE, false))
+        if(prefs.getBoolean(Util.PREF_LOGGING_LOCAL, false))
             requests.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
 
         // Check if we have requested permission
@@ -296,19 +293,26 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     protected void onPermissionGranted(String permission) {
-        if (Manifest.permission.CAMERA.equals(permission))
+        Log.d(TAG, "Permission granted: "+permission);
+        if (Manifest.permission.CAMERA.equals(permission)) {
             setupCamera();
-        else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission))
+            prefs.edit().putBoolean(Util.PREF_CAPTURE_CAMERA, true).commit();
+        } else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission)) {
             new File(Environment.getExternalStorageDirectory(), getString(R.string.app_folder)).mkdirs();
+            prefs.edit().putBoolean(Util.PREF_LOGGING_LOCAL, true).commit();
+        } else if (Manifest.permission.INTERNET.equals(permission)) {
+            prefs.edit().putBoolean(Util.PREF_FTP, true).commit();
+        }
     }
 
     protected void onPermissionDenied(String permission) {
+        Log.d(TAG, "Permission denied: "+permission);
         if (Manifest.permission.CAMERA.equals(permission))
             prefs.edit().putBoolean(Util.PREF_CAPTURE_CAMERA, false).commit();
         else if (Manifest.permission.INTERNET.equals(permission))
             prefs.edit().putBoolean(Util.PREF_FTP, false).commit();
         else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission))
-            prefs.edit().putBoolean(Util.PREF_LOGGING_SAVE, false).commit();
+            prefs.edit().putBoolean(Util.PREF_LOGGING_LOCAL, false).commit();
     }
     //
     // ----------------------------------- ---------------------- ----------------------------------
@@ -319,6 +323,7 @@ public class MainActivity extends AppCompatActivity implements
     // ---------------------------------- CAMERA SURFACE CALLBACKS ---------------------------------
     //
     public void surfaceCreated(SurfaceHolder holder) {
+        Log.d(TAG, "Open camera");
         cameraHandlerThread.openCamera(holder, null);
 //        new Runnable() {
 //            @Override
@@ -331,13 +336,14 @@ public class MainActivity extends AppCompatActivity implements
     public void surfaceChanged(final SurfaceHolder holder, final int format, final int w, final int h) {
 
         Camera camera = cameraHandlerThread.getCamera();
+        Log.d(TAG, "Camera change: "+camera);
         if (camera==null) {
-            cameraHandlerThread.openCamera(holder, new Runnable() {
-                @Override
-                public void run() {
-                    surfaceChanged(holder, format, w, h);
-                }
-            });
+//            cameraHandlerThread.openCamera(holder, new Runnable() {
+//                @Override
+//                public void run() {
+//                    surfaceChanged(holder, format, w, h);
+//                }
+//            });
             return;
         }
 
@@ -368,6 +374,7 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     public void surfaceDestroyed(SurfaceHolder holder) {
+        Log.d(TAG, "Close camera");
         cameraHandlerThread.closeCamera();
     }
     //

@@ -12,7 +12,7 @@ public abstract class LogTarget {
      *
      * TODO: add a kind of listener interface support instead of single callbacks
      */
-    public abstract void send(final byte[] data, final String filename, final Runnable callback);
+    public abstract void send(final byte[] data, final String filename, final SyncCallbackThread scThread);
 
     /**
      * Implement final cleanup

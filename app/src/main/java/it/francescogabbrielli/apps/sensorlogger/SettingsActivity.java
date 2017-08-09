@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
@@ -23,6 +24,7 @@ import android.text.InputType;
 import android.util.Log;
 import android.view.MenuItem;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 
@@ -234,18 +236,31 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         }
 
         private void addPreferencesFromSensors() {
-            PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(getActivity());
+
+            final PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(getActivity());
             screen.setOrderingAsAdded(true);
 
-            List<Sensor> sensors = Util.getSensors(getActivity());
-            for (Sensor s : sensors) {
-                CheckBoxPreference p = new CheckBoxPreference(getActivity());
-                p.setTitle(Util.getSensorName(s));
-                p.setSummary(s.getName() + "/" + s.getVendor());
-                p.setDefaultValue(false);
-                p.setKey("pref_sensor_"+s.getType());
-                screen.addPreference(p);
-            }
+            new AsyncTask<Void, Void, List<CheckBoxPreference>>() {
+                @Override
+                protected List<CheckBoxPreference> doInBackground(Void... params) {
+                    List<Sensor> sensors = Util.getSensors(getActivity());
+                    List<CheckBoxPreference> list = new LinkedList<>();
+                    for (Sensor s : sensors) {
+                        CheckBoxPreference p = new CheckBoxPreference(getActivity());
+                        p.setTitle(Util.getSensorName(s));
+                        p.setSummary(s.getName() + "/" + s.getVendor());
+                        p.setDefaultValue(false);
+                        p.setKey("pref_sensor_" + s.getType());
+                        list.add(p);
+                    }
+                    return list;
+                }
+                @Override
+                protected void onPostExecute(List<CheckBoxPreference> list) {
+                    for (CheckBoxPreference p : list)
+                        screen.addPreference(p);
+                }
+            }.execute();
 
             setPreferenceScreen(screen);
         }

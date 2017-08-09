@@ -21,7 +21,7 @@ public class LogFileWriter extends LogTarget {
     }
 
     @Override
-    public void send(final byte[] data, final String filename, final Runnable callback) {
+    public void send(final byte[] data, final String filename, final SyncCallbackThread scThread) {
         exec.execute(new Runnable() {
             @Override
             public void run() {
@@ -29,8 +29,8 @@ public class LogFileWriter extends LogTarget {
                 try {
                     out = new FileOutputStream(new File(folder, filename));
                     out.write(data);
-                    if (callback!=null)
-                        callback.run();
+                    if (scThread!=null)
+                        scThread.releaseLock();
                     Log.d(TAG, "Data written to " + filename);
                 } catch (Exception e) {
                     Log.e(TAG, "Error writing file", e);
