@@ -1,14 +1,12 @@
 package it.francescogabbrielli.apps.sensorlogger;
 
-
-import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
+import android.database.Cursor;
+import android.database.MatrixCursor;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
-import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
 import android.preference.EditTextPreference;
@@ -17,6 +15,9 @@ import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceScreen;
 import android.support.annotation.Nullable;
+import android.app.LoaderManager;
+import android.content.AsyncTaskLoader;
+import android.content.Loader;
 import android.support.v7.app.ActionBar;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
@@ -24,9 +25,7 @@ import android.text.InputType;
 import android.util.Log;
 import android.view.MenuItem;
 
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Properties;
 
 /**
  * A {@link PreferenceActivity} that presents a set of application settings. On
@@ -40,6 +39,8 @@ import java.util.Properties;
  * API Guide</a> for more information on developing a Settings UI.
  */
 public class SettingsActivity extends AppCompatPreferenceActivity {
+
+    private final static String TAG = SettingsActivity.class.getSimpleName();
 
     public static class AppCompatPreferenceFragment extends PreferenceFragment {
 
@@ -67,7 +68,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
     private static Preference.OnPreferenceChangeListener sBindPreferenceSummaryToValueListener = new Preference.OnPreferenceChangeListener() {
         @Override
         public boolean onPreferenceChange(Preference preference, Object value) {
-            Log.d(SettingsActivity.class.getSimpleName(), "Preference "+preference.getKey()+" -> "+value+" ["+value.getClass()+"]");
+            Log.d(TAG, "Preference "+preference.getKey()+" -> "+value+" ["+value.getClass()+"]");
             String stringValue = value.toString();
             Context ctx = preference.getContext();
             if (preference instanceof ListPreference) {
@@ -79,6 +80,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
                 if (index < 0) {
                     preference.setSummary(null);
                 } else {
+                    listPreference.setValueIndex(index);
                     CharSequence val = listPreference.getEntries()[index];
                     int descriptionId = ctx.getResources().getIdentifier(
                             preference.getKey() + "_description", "string", ctx.getPackageName());
@@ -122,32 +124,28 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
      */
     private static void bindPreferenceSummaryToValue(Preference preference) {
 
-        String def = defaults.getProperty(preference.getKey());
 
-        // set defaults!
-        if (def!=null)
-            PreferenceManager.getDefaultSharedPreferences(preference.getContext())
-                    .edit().putString(preference.getKey(), def).commit();
-
+        String def = PreferenceManager.getDefaultSharedPreferences(preference.getContext()).getString(preference.getKey(), "");
+//        Log.v(TAG, "Loading default setting " + preference.getKey() + "=" + def);
 
         // Set the listener to watch for value changes.
         preference.setOnPreferenceChangeListener(sBindPreferenceSummaryToValueListener);
 
         // Trigger the listener immediately with the preference's
         // current value.
-        sBindPreferenceSummaryToValueListener.onPreferenceChange(preference,
-                PreferenceManager
-                        .getDefaultSharedPreferences(preference.getContext())
-                        .getString(preference.getKey(), def!=null?def:""));
-    }
+        sBindPreferenceSummaryToValueListener.onPreferenceChange(preference, def != null ? def : "");
 
-    private static Properties defaults;
+        // set defaults from "default.properties" file
+//        if (def != null)
+//            PreferenceManager.getDefaultSharedPreferences(preference.getContext())
+//                    .edit().putString(preference.getKey(), def).apply();
+
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setupActionBar();
-        defaults = Util.loadDefaults(this);
     }
 
     /**
@@ -173,40 +171,40 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
      * {@inheritDoc}
      */
     @Override
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     public void onBuildHeaders(List<Header> target) {
         loadHeadersFromResource(R.xml.pref_headers, target);
     }
 
     /**
-     * Th-is method stops fragment injection in malicious applications.
+     * This method stops fragment injection in malicious applications.
      * Make sure to deny any unknown fragments here.
      */
     protected boolean isValidFragment(String fragmentName) {
         return PreferenceFragment.class.getName().equals(fragmentName)
+                || FilePreferenceFragment.class.getName().equals(fragmentName)
                 || LoggingPreferenceFragment.class.getName().equals(fragmentName)
                 || SensorsPreferenceFragment.class.getName().equals(fragmentName)
                 || CapturePreferenceFragment.class.getName().equals(fragmentName)
                 || FTPPreferenceFragment.class.getName().equals(fragmentName);
     }
 
-    /**
-     * This fragment shows general preferences only. It is used when the
-     * activity is showing a two-pane settings UI.
-     */
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     public static class LoggingPreferenceFragment extends AppCompatPreferenceFragment {
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
             addPreferencesFromResource(R.xml.pref_logging);
             bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_RATE));
-            bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_UPDATE));
-            bindPreferenceSummaryToValue(findPreference(Util.PREF_LOGGING_LENGTH));
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
+    public static class FilePreferenceFragment extends AppCompatPreferenceFragment {
+        @Override
+        public void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            addPreferencesFromResource(R.xml.pref_file);
+        }
+    }
+
     public static class FTPPreferenceFragment extends AppCompatPreferenceFragment {
         @Override
         public void onCreate(Bundle savedInstanceState) {
@@ -218,7 +216,6 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     public static class CapturePreferenceFragment extends AppCompatPreferenceFragment {
         @Override
         public void onCreate(Bundle savedInstanceState) {
@@ -227,44 +224,74 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
        }
     }
 
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    public static class SensorsPreferenceFragment extends AppCompatPreferenceFragment {
+    public static class SensorsPreferenceFragment extends AppCompatPreferenceFragment
+                implements LoaderManager.LoaderCallbacks<Cursor> {
+
+        private Context context;
+        private PreferenceScreen screen;
+
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
-            addPreferencesFromSensors();
-        }
-
-        private void addPreferencesFromSensors() {
-
-            final PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(getActivity());
+            screen = getPreferenceManager().createPreferenceScreen(getActivity());
             screen.setOrderingAsAdded(true);
-
-            new AsyncTask<Void, Void, List<CheckBoxPreference>>() {
-                @Override
-                protected List<CheckBoxPreference> doInBackground(Void... params) {
-                    List<Sensor> sensors = Util.getSensors(getActivity());
-                    List<CheckBoxPreference> list = new LinkedList<>();
-                    for (Sensor s : sensors) {
-                        CheckBoxPreference p = new CheckBoxPreference(getActivity());
-                        p.setTitle(Util.getSensorName(s));
-                        p.setSummary(s.getName() + "/" + s.getVendor());
-                        p.setDefaultValue(false);
-                        p.setKey("pref_sensor_" + s.getType());
-                        list.add(p);
-                    }
-                    return list;
-                }
-                @Override
-                protected void onPostExecute(List<CheckBoxPreference> list) {
-                    for (CheckBoxPreference p : list)
-                        screen.addPreference(p);
-                }
-            }.execute();
-
             setPreferenceScreen(screen);
         }
 
+        @Override
+        public void onAttach(Context context) {
+            super.onAttach(context);
+            this.context = context;
+            getLoaderManager().initLoader(0, null, this);
+        }
+
+        @Override
+        public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+            return new SensorsLoader(context);
+        }
+
+        @Override
+        public void onLoaderReset(Loader<Cursor> loader) {
+        }
+
+        @Override
+        public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
+            data.moveToFirst();
+            while(!data.isAfterLast()) {
+                CheckBoxPreference p = new CheckBoxPreference(context);
+                p.setTitle(data.getString(0));
+                p.setSummary(data.getString(1));
+                p.setDefaultValue(false);
+                p.setKey(data.getString(2));
+                screen.addPreference(p);
+                data.move(1);
+            }
+        }
+    }
+
+    private static class SensorsLoader extends AsyncTaskLoader<Cursor> {
+
+        SensorsLoader(Context context) { super(context); }
+
+        @Override
+        protected void onStartLoading() {
+            super.onStartLoading();
+            forceLoad();
+        }
+
+        @Override
+        public Cursor loadInBackground() {
+            Log.i(TAG, "Loading sensors");
+            MatrixCursor ret = new MatrixCursor(new String[]{"title", "summary", "key"});
+            SensorManager sensorManager = (SensorManager) getContext().getSystemService(Context.SENSOR_SERVICE);
+            List<Sensor> sensors = Util.getSensors(sensorManager);
+            for (Sensor s : sensors)
+                ret.addRow(new Object[] {
+                        Util.getSensorName(s),
+                        s.getName() + "/" + s.getVendor(),
+                        "pref_sensor_" + s.getType() });
+            return ret;
+        }
     }
 
 }

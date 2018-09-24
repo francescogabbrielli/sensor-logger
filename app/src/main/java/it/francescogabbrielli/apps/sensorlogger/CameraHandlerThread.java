@@ -16,7 +16,7 @@ import java.io.IOException;
  */
 public class CameraHandlerThread extends HandlerThread {
 
-    private Context context;
+    private final static String TAG = CameraHandlerThread.class.getSimpleName();
 
     private Handler handler;
 
@@ -26,7 +26,6 @@ public class CameraHandlerThread extends HandlerThread {
 
     public CameraHandlerThread(Context context) {
         super("CameraHandlerThread");
-        this.context = context;
         start();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         on = prefs.getBoolean(Util.PREF_CAPTURE_CAMERA, false);
@@ -34,6 +33,7 @@ public class CameraHandlerThread extends HandlerThread {
     }
 
     public void openCamera(final SurfaceHolder holder, final Runnable callback) {
+        Log.d(TAG, "Open camera");
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
@@ -60,8 +60,10 @@ public class CameraHandlerThread extends HandlerThread {
     }
 
     public void closeCamera(){
-        if (camera!=null)
+        if (camera!=null) {
+            Log.d(TAG, "Close camera");
             camera.release();
+        }
         camera = null;
     }
 
