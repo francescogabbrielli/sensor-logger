@@ -98,7 +98,7 @@ public class Recorder implements Camera.PictureCallback, ServiceConnection {
         if (buffer.length()>0)
             buffer.deleteCharAt(buffer.length()-1);
 
-        Log.v(TAG, "Sensor reading: "+buffer);
+//        Log.v(TAG, "Sensor reading: "+buffer);
 
         buffer.append('\n');
 
@@ -111,7 +111,7 @@ public class Recorder implements Camera.PictureCallback, ServiceConnection {
     }
 
     private void scheduleJob(String filename, byte[] data, int type) {
-        Log.v(TAG, "Scheduling "+filename+", type"+type);
+//        Log.v(TAG, "Scheduling "+filename+", type"+type);
 //        Bundle extras = new Bundle();
 //        extras.putString(Util.EXTRA_FILENAME, filename);
 //        extras.putInt(Util.EXTRA_TYPE, type);
@@ -153,7 +153,8 @@ public class Recorder implements Camera.PictureCallback, ServiceConnection {
         schedule.cancel(true);
         schedule = null;
         reader.stop();
-        scheduleJob(null,null, ILogTarget.CLOSE);
+        if (started)
+            scheduleJob(null,null, ILogTarget.CLOSE);
 
         // unbinding
         context.unbindService(this);

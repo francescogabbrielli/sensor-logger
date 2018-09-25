@@ -10,6 +10,7 @@ import android.hardware.Camera;
 import android.hardware.SensorManager;
 import android.media.AudioManager;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
@@ -17,21 +18,27 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceHolder;
-import android.widget.CompoundButton;
+import android.view.View;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ToggleButton;
 
 import java.io.File;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity implements
-        CompoundButton.OnCheckedChangeListener,
         SurfaceHolder.Callback,
         ICamera {
 
@@ -55,6 +62,8 @@ public class MainActivity extends AppCompatActivity implements
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -62,10 +71,6 @@ public class MainActivity extends AppCompatActivity implements
         recorder = new Recorder(
                 new SensorReader((SensorManager) getSystemService(SENSOR_SERVICE), prefs),
                 this);
-
-        final ToggleButton b = findViewById(R.id.btn_rec);
-//        b.setChecked(prefs.getBoolean(Util.PREF_RECORDING, false));
-        b.setOnCheckedChangeListener(this);
 
         //start the service
         startService(new Intent(this, LoggingService.class));
@@ -132,6 +137,10 @@ public class MainActivity extends AppCompatActivity implements
     protected void onPause() {
         Log.d(TAG, "onPause");
         recorder.stop();
+        hidePrepareAnimation();
+        hideBlinkingAnimation();
+        if (animExec!=null)
+            animExec.shutdown();
         super.onPause();
     }
 
@@ -151,23 +160,97 @@ public class MainActivity extends AppCompatActivity implements
         return super.onOptionsItemSelected(item);
     }
 
+    private boolean recording;
+    private long lastPressed;
+
     @Override
-    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-        if (isChecked) {
-            recorder.start(this);
-        } else {
-            recorder.stop();
-            // restart preview ???
-            if (cameraHandlerThread != null)
-                cameraHandlerThread.restart();
-        }
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (SystemClock.elapsedRealtime()-lastPressed>1000)
+            if (keyCode==KeyEvent.KEYCODE_VOLUME_DOWN || keyCode==KeyEvent.KEYCODE_VOLUME_UP ) {
+                lastPressed = SystemClock.elapsedRealtime();
+                AudioManager mgr = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                if (!recording) {
+                    recording = true;
+                    recorder.start(this);
+                    mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
+                    showPrepareAnimation();
+                } else {
+                    recording = false;
+                    recorder.stop();
+                    mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
+                    hidePrepareAnimation();
+                    hideBlinkingAnimation();
+                    // restart preview ???
+                    if (cameraHandlerThread != null)
+                        cameraHandlerThread.restart();
+                }
+                return true;
+            }
+        return super.onKeyDown(keyCode,event);
+    }
+
+    private ScheduledExecutorService animExec;
+    private ScheduledFuture prepareFuture, recordingFuture;
+
+    private void showPrepareAnimation() {
+        if (animExec==null)
+            animExec = Executors.newSingleThreadScheduledExecutor();
+        prepareFuture = animExec.schedule(new Runnable() {
+            @Override
+            public void run() {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        TextView t = findViewById(R.id.anim_prepare);
+                        int val = 4;
+                        try { val = Integer.parseInt(t.getText().toString()); } catch(Exception e) {}
+                        if (--val>0) {
+                            t.setText(String.valueOf(val));
+                            showPrepareAnimation();
+                        } else {
+                            hidePrepareAnimation();
+                            showBlinkingAnimation();
+                        }
+                    }
+                });
+            }
+        }, 1, TimeUnit.SECONDS);
+    }
+    private void hidePrepareAnimation() {
+        if (prepareFuture !=null)
+            prepareFuture.cancel(true);
+        TextView t = findViewById(R.id.anim_prepare);
+        t.setText("");
+    }
+
+    private void showBlinkingAnimation() {
+        if (animExec==null)
+            animExec = Executors.newSingleThreadScheduledExecutor();
+        recordingFuture = animExec.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ImageView i = findViewById(R.id.img_record);
+                        i.setVisibility(i.getVisibility()==View.VISIBLE ? View.INVISIBLE : View.VISIBLE);
+                    }
+                });
+            }
+        }, 0, 500, TimeUnit.MILLISECONDS);
+
+    }
+    private void hideBlinkingAnimation() {
+        if (recordingFuture!=null)
+            recordingFuture.cancel(true);
+        ImageView i = findViewById(R.id.img_record);
+        i.setVisibility(View.INVISIBLE);
     }
 
 
     //<editor-fold desc="Permissions">
     // ----------------------------------- PERMISSIONS MANAGEMENT ----------------------------------
     //
-
     /**
      * Checks if the app has the required permissions, as per current setttings.
      * <p>

@@ -126,7 +126,7 @@ public class LoggingService extends Service {
     }
 
     public void log(final String filename, final int type, final byte[] data) {
-        Log.v(TAG, "Logging to "+filename+" type "+type);
+//        Log.v(TAG, "Logging to "+filename+" type "+type);
         handler.post(new Runnable() {
             @Override
             public void run() {
@@ -154,7 +154,7 @@ public class LoggingService extends Service {
                             }
                             break;
                     }
-                    Log.d(TAG, "Logged to "+filename+", type "+type);
+//                    Log.d(TAG, "Logged to "+filename+", type "+type);
                 } catch(Exception exc) {
                     Log.e(TAG, "Logging error", exc);
                 }

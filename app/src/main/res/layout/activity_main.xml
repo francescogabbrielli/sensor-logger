@@ -22,14 +22,25 @@
 
     <include layout="@layout/content_main" />
 
-    <ToggleButton
-        android:id="@+id/btn_rec"
+    <ImageView
+        android:id="@+id/img_record"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:layout_gravity="bottom|center"
+        android:layout_gravity="bottom|end"
         android:layout_margin="@dimen/fab_margin"
-        android:textOn=""
-        android:textOff=""
-        android:background="@drawable/btn_rec" />
+        android:src="@drawable/btn_rec"
+        android:visibility="invisible"
+        />
+
+    <TextView
+        android:id="@+id/anim_prepare"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:textColor="@android:color/white"
+        android:textSize="100dp"
+        android:textStyle="bold"
+        android:textAlignment="center"
+        android:gravity="center"
+        />
 
 </android.support.design.widget.CoordinatorLayout>
