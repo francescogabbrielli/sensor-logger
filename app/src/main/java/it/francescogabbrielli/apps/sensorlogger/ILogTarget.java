@@ -23,7 +23,7 @@ public abstract class ILogTarget {
      * Initailize logger
      * @param filename the filename to log to
      */
-    public abstract void open(String filename) throws IOException;
+    public abstract void open(String folder, String filename) throws IOException;
 
     /**
      * Write data to logger

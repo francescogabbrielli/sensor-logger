@@ -122,10 +122,11 @@ public class LoggingService extends Service {
         int type = extras.getInt(Util.EXTRA_TYPE);
         byte[] data = extras.getByteArray(Util.EXTRA_DATA);
         String filename = extras.getString(Util.EXTRA_FILENAME);
-        log(filename, type, data);
+        String folder = extras.getString(Util.EXTRA_FOLDER);
+        log(folder, filename, type, data);
     }
 
-    public void log(final String filename, final int type, final byte[] data) {
+    public void log(final String folder, final String filename, final int type, final byte[] data) {
 //        Log.v(TAG, "Logging to "+filename+" type "+type);
         handler.post(new Runnable() {
             @Override
@@ -136,7 +137,7 @@ public class LoggingService extends Service {
                             if (openLoggers.isEmpty())
                                 openLoggers.addAll(newLoggers());
                             for (ILogTarget t : openLoggers)
-                                t.open(filename);
+                                t.open(folder, filename);
                         case ILogTarget.WRITE:
                             for (ILogTarget t : openLoggers)
                                 t.write(data);
@@ -148,7 +149,7 @@ public class LoggingService extends Service {
                             break;
                         case ILogTarget.SEND:
                             for (ILogTarget t : atomicLoggers) {
-                                t.open(filename);
+                                t.open(folder, filename);
                                 t.write(data);
                                 t.close();
                             }

@@ -31,14 +31,14 @@ public class LogFTPUploader extends ILogTarget {
      * Connects to the FTP server
      */
     @Override
-    public void open(String filename) throws IOException {
+    public void open(String folder, String filename) throws IOException {
         if (!client.isConnected())
             try {
                 client.connect(address);
                 client.login(user, password);
                 client.enterLocalPassiveMode();
                 client.setFileType(org.apache.commons.net.ftp.FTP.BINARY_FILE_TYPE);
-                out = client.storeFileStream(filename);
+                out = client.storeFileStream(folder+"/"+filename);
                 Log.d(getTag(), "Client connected");
             } catch (Exception e) {
                 Log.e(getTag(), "Can't connect to " + address + ", user: " + user);

@@ -5,6 +5,10 @@
     <string name="app_folder">SensorLogger</string>
     <string name="gif_recording">Recording starts in 3 seconds</string>
 
+    <string name="toast_recording_stop">Recording stopped</string>
+    <string name="toast_recording_interrupted">Recording interrupted</string>
+    <string name="toast_recording_offlimits">Recording reached maximum length</string>
+
     <!-- Strings related to Settings -->
 
     <!-- Settings -> FTP -->

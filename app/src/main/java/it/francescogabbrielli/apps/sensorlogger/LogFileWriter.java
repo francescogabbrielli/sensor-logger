@@ -15,11 +15,14 @@ public class LogFileWriter extends ILogTarget {
         super(prefs);
         folder = new File(Environment.getExternalStorageDirectory(),
                 prefs.getString(Util.PREF_APP_FOLDER, "SensorLogger"));
+
     }
 
     @Override
-    public void open(String filename) throws IOException {
-        out = new FileOutputStream(new File(folder, filename));
+    public void open(String folder, String filename) throws IOException {
+        File subfolder = new File(this.folder, folder);
+        subfolder.mkdir();
+        out = new FileOutputStream(new File(subfolder, filename));
     }
 
 }

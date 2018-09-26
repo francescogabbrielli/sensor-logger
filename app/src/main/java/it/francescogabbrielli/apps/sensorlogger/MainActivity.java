@@ -97,7 +97,9 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     @Override
-    public void pictureTaken() {
+    public void done(boolean ok) {
+        if (!ok)
+            stopRecording(R.string.toast_recording_offlimits);
         safeToTakePicture = true;
     }
 
@@ -136,9 +138,7 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     protected void onPause() {
         Log.d(TAG, "onPause");
-        recorder.stop();
-        hidePrepareAnimation();
-        hideBlinkingAnimation();
+        stopRecording(R.string.toast_recording_interrupted);
         if (animExec!=null)
             animExec.shutdown();
         super.onPause();
@@ -175,11 +175,8 @@ public class MainActivity extends AppCompatActivity implements
                     mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
                     showPrepareAnimation();
                 } else {
-                    recording = false;
-                    recorder.stop();
                     mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
-                    hidePrepareAnimation();
-                    hideBlinkingAnimation();
+                    stopRecording(R.string.toast_recording_stop);
                     // restart preview ???
                     if (cameraHandlerThread != null)
                         cameraHandlerThread.restart();
@@ -247,6 +244,15 @@ public class MainActivity extends AppCompatActivity implements
         i.setVisibility(View.INVISIBLE);
     }
 
+    private void stopRecording(int msg) {
+        if (recording)
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+        recording = false;
+        recorder.stop();
+        hidePrepareAnimation();
+        hideBlinkingAnimation();
+    }
+
 
     //<editor-fold desc="Permissions">
     // ----------------------------------- PERMISSIONS MANAGEMENT ----------------------------------
@@ -311,6 +317,10 @@ public class MainActivity extends AppCompatActivity implements
         if (Manifest.permission.CAMERA.equals(permission)) {
             setupCamera();
         } else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission)) {
+            File dir = new File(Environment.getExternalStorageDirectory(),
+                    getString(R.string.app_folder));
+            if (dir.mkdirs())
+                Log.i(TAG, "Creating app folder " + dir.getAbsolutePath());
         } else if (Manifest.permission.INTERNET.equals(permission)) {
         }
     }
@@ -320,9 +330,6 @@ public class MainActivity extends AppCompatActivity implements
         if (Manifest.permission.CAMERA.equals(permission)) {
             prefs.edit().putBoolean(Util.PREF_CAPTURE_CAMERA, true).apply();
         } else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission)) {
-            File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
-                    getString(R.string.app_folder));
-            Log.i(TAG, "Creating app folder " + dir.getAbsolutePath() + "..." + dir.mkdirs());
             prefs.edit().putBoolean(Util.PREF_FILE, true).apply();
         } else if (Manifest.permission.INTERNET.equals(permission)) {
             prefs.edit().putBoolean(Util.PREF_FTP, true).apply();

@@ -6,6 +6,6 @@ public interface ICamera {
 
     void takePicture(Camera.PictureCallback pictureCallback);
 
-    void pictureTaken();
+    void done(boolean ok);
 
 }

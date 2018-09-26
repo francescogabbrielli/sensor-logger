@@ -44,6 +44,7 @@ public class Util {
     public final static String EXTRA_TYPE           = "extra_type";
     public final static String EXTRA_DATA           = "extra_data";
     public final static String EXTRA_FILENAME       = "extra_filename";
+    public final static String EXTRA_FOLDER         = "extra_folder";
 
     public final static String[] DATA_HEADERS = new String[] {
             "X", "Y", "Z", "Param1", "Param2", "Param3"
