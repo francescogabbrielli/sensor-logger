@@ -26,7 +26,7 @@ public class LoggingService extends Service {
     private final static String TAG = LoggingService.class.getSimpleName();
 
     public static final String ACTION_START = "it.francescogabbrielli.apps.sensorlogger.action.START";
-    public static final String ACTION_STOP = "it.francescogabbrielli.apps.sensorlogger.action.STOP";
+    public static final String ACTION_STOP  = "it.francescogabbrielli.apps.sensorlogger.action.STOP";
 
     private IBinder binder = new Binder();
 
@@ -115,8 +115,7 @@ public class LoggingService extends Service {
     }
 
     /**
-     * Handle action Foo in the provided background thread with the provided
-     * parameters.
+     * Handle action START in the provided background thread with the provided
      */
     private void handleStart(final Bundle extras) {
         int type = extras.getInt(Util.EXTRA_TYPE);
@@ -165,7 +164,7 @@ public class LoggingService extends Service {
     }
 
     /**
-     * Handle action Baz in the provided background thread with the provided
+     * Handle action STOP in the provided background thread with the provided
      * parameters.
      */
     private void handleStop(Bundle extras) {

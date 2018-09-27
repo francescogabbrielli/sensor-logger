@@ -28,7 +28,7 @@ public class Recorder implements Camera.PictureCallback, ServiceConnection {
     private final static String TAG = Recorder.class.getSimpleName();
 
     private final static int MAX_RECORDING_TIME = 600000;//10min
-    private final static DateFormat dateFormat = new SimpleDateFormat("Y_MM_d__HH_mm", Locale.US);
+    private final static DateFormat dateFormat = new SimpleDateFormat("yyyy_MM_d__HH_mm", Locale.US);
 
     private Context context;
     private LoggingService service;
@@ -105,10 +105,11 @@ public class Recorder implements Camera.PictureCallback, ServiceConnection {
         for (SensorEvent e : reader) {
             int l = Math.min(e.values.length, getSensorDataLength(e.sensor));
             for (int i=0; i<l; i++) {
-                if (flagHeaders && started) {
-                    headers.append(Util.getSensorName(e.sensor));
-                    headers.append(",");
-                }
+                if (flagHeaders && started)
+                    headers.append(Util.getSensorName(e.sensor))
+                            .append(" ")
+                            .append(Util.DATA_HEADERS[i])
+                            .append(",");
                 buffer.append(String.format("%2.5f", e.values[i]));
                 buffer.append(',');
             }
