@@ -221,6 +221,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
             addPreferencesFromResource(R.xml.pref_capture);
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_CAPTURE_IMGFORMAT));
        }
     }
 

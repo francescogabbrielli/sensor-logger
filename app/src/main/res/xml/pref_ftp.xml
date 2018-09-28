@@ -5,14 +5,11 @@
         android:key="pref_ftp"
         android:title="@string/pref_ftp_title"
         android:summary="@string/pref_ftp_description"
-        android:defaultValue="false"
         />
 
     <EditTextPreference
         android:dependency="pref_ftp"
         android:key="pref_ftp_address"
-        android:inputType="number"
-        android:digits="0123456789."
         android:title="@string/pref_ftp_address_title"
         />
     <EditTextPreference

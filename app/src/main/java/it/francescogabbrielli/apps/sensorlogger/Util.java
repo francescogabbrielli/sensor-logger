@@ -1,16 +1,11 @@
 package it.francescogabbrielli.apps.sensorlogger;
 
-
-import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.hardware.Camera;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
 import android.os.Build;
 import android.preference.PreferenceManager;
-import android.util.Log;
-import android.view.Surface;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -39,6 +34,7 @@ public class Util {
     public final static String PREF_LOGGING_TIMESTAMP = "pref_logging_timestamp";
 
     public final static String PREF_CAPTURE_CAMERA  = "pref_capture_camera";
+    public final static String PREF_CAPTURE_IMGFORMAT = "pref_capture_imgformat";
     public final static String PREF_CAPTURE_SOUND   = "pref_capture_sound";
 
     public final static String EXTRA_TYPE           = "extra_type";
@@ -50,6 +46,26 @@ public class Util {
             "X", "Y", "Z", "Param1", "Param2", "Param3"
     };
 
+    public static class Log {
+        public static void w(String tag, String msg) {
+            Log.w(tag, msg);
+        }
+        public static void e(String tag, String msg, Throwable t) {
+            Log.e(tag, msg, t);
+        }
+        public static void i(String tag, String msg) {
+            Log.i(tag, msg);
+        }
+        public static void d(String tag, String msg) {
+            if (BuildConfig.DEBUG)
+                Log.d(tag, msg);
+        }
+        public static void v(String tag, String msg) {
+            if (BuildConfig.DEBUG)
+                Log.v(tag, msg);
+        }
+    }
+
 
     /**
      * Load dedaults from config file (asynchronously)
@@ -58,18 +74,24 @@ public class Util {
      *              application context
      */
     public static void loadDefaults(final Context context) {
-        final Properties defaults = new Properties();
         new Thread() {
             @Override
             public void run() {
+                Properties defaults = new Properties();
                 try{
                     defaults.load(context.getAssets().open("defaults.properties"));
                     SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
                     SharedPreferences.Editor editor = prefs.edit();
                     for (Enumeration e=defaults.propertyNames(); e.hasMoreElements();) {
                         String key = String.valueOf(e.nextElement());
-                        if (prefs.getString(key, null)==null)
-                            editor.putString(key, defaults.getProperty(key));
+                        if (!prefs.contains(key)) {
+                            String val = defaults.getProperty(key);
+                            //TODO: manage different types?
+                            if ("TRUE".equalsIgnoreCase(val) || "FALSE".equalsIgnoreCase(val))
+                                editor.putBoolean(key, Boolean.parseBoolean(val.toLowerCase()));
+                            else
+                                editor.putString(key, val);
+                        }
                     }
                     editor.apply();
                     Log.d(TAG, "Defaults loaded: "+defaults.toString());
@@ -130,31 +152,6 @@ public class Util {
             }
         }
         return ret;
-    }
-
-    public static void setCameraDisplayOrientation(Activity activity,
-                                                   int cameraId, android.hardware.Camera camera) {
-        android.hardware.Camera.CameraInfo info =
-                new android.hardware.Camera.CameraInfo();
-        android.hardware.Camera.getCameraInfo(cameraId, info);
-        int rotation = activity.getWindowManager().getDefaultDisplay()
-                .getRotation();
-        int degrees = 0;
-        switch (rotation) {
-            case Surface.ROTATION_0: degrees = 0; break;
-            case Surface.ROTATION_90: degrees = 90; break;
-            case Surface.ROTATION_180: degrees = 180; break;
-            case Surface.ROTATION_270: degrees = 270; break;
-        }
-
-        int result;
-        if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-            result = (info.orientation + degrees) % 360;
-            result = (360 - result) % 360;  // compensate the mirror
-        } else {  // back-facing
-            result = (info.orientation - degrees + 360) % 360;
-        }
-        camera.setDisplayOrientation(result);
     }
 
     public static long getLongPref(SharedPreferences prefs, String prefKey) {

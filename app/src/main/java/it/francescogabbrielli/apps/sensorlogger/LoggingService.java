@@ -12,6 +12,10 @@ import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
+import org.opencv.imgcodecs.Imgcodecs;
+
 import java.util.LinkedList;
 import java.util.List;
 
@@ -35,6 +39,7 @@ public class LoggingService extends Service {
 
     HandlerThread thread;
     Handler handler;
+    private String ext;
 
 
     public class Binder extends android.os.Binder {
@@ -74,26 +79,27 @@ public class LoggingService extends Service {
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        Log.v(TAG, "in onBind");
+        Util.Log.v(TAG, "in onBind");
         return binder;
     }
 
     @Override
     public void onRebind(Intent intent) {
-        Log.v(TAG, "in onRebind");
+        Util.Log.v(TAG, "in onRebind");
+        ext = prefs.getString(Util.PREF_CAPTURE_IMGFORMAT, ".png");
         super.onRebind(intent);
     }
 
     @Override
     public boolean onUnbind(Intent intent) {
-        Log.v(TAG, "in onUnbind");
+        Util.Log.v(TAG, "in onUnbind");
         return true;
     }
 
     @Override
     public void onLowMemory() {
         super.onLowMemory();
-        Log.d(TAG, "onLowMemory");
+        Util.Log.d(TAG, "onLowMemory");
     }
 
     @Override
@@ -101,7 +107,7 @@ public class LoggingService extends Service {
         atomicLoggers.clear();
         openLoggers.clear();
         thread.quit();
-        Log.d(TAG, "onDestroy");
+        Util.Log.d(TAG, "onDestroy");
         super.onDestroy();
     }
 
@@ -125,8 +131,15 @@ public class LoggingService extends Service {
         log(folder, filename, type, data);
     }
 
-    public void log(final String folder, final String filename, final int type, final byte[] data) {
-//        Log.v(TAG, "Logging to "+filename+" type "+type);
+    /**
+     * Log on available {@link ILogTarget}s
+     * @param folder
+     * @param filename
+     * @param type
+     * @param data
+     */
+    public void log(final String folder, final String filename, final int type, final Object data) {
+        Util.Log.v(TAG, "Logging to "+filename+" type "+type+"; data: "+(data!=null));
         handler.post(new Runnable() {
             @Override
             public void run() {
@@ -139,7 +152,7 @@ public class LoggingService extends Service {
                                 t.open(folder, filename);
                         case ILogTarget.WRITE:
                             for (ILogTarget t : openLoggers)
-                                t.write(data);
+                                t.write((byte[]) data);
                             break;
                         case ILogTarget.CLOSE:
                             for (ILogTarget t : openLoggers)
@@ -149,14 +162,14 @@ public class LoggingService extends Service {
                         case ILogTarget.SEND:
                             for (ILogTarget t : atomicLoggers) {
                                 t.open(folder, filename);
-                                t.write(data);
+                                t.write((byte[]) data);
                                 t.close();
                             }
                             break;
                     }
-//                    Log.d(TAG, "Logged to "+filename+", type "+type);
+//                    Util.Log.d(TAG, "Logged to "+filename+", type "+type);
                 } catch(Exception exc) {
-                    Log.e(TAG, "Logging error", exc);
+                    Util.Log.e(TAG, "Logging error", exc);
                 }
             }
         });

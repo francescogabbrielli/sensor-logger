@@ -4,7 +4,6 @@
         android:key="pref_file"
         android:title="@string/pref_file_title"
         android:summary="@string/pref_file_description"
-        android:defaultValue="false"
         />
 
 </PreferenceScreen>

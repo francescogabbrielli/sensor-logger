@@ -34,14 +34,22 @@ public class LogFTPUploader extends ILogTarget {
     public void open(String folder, String filename) throws IOException {
         if (!client.isConnected())
             try {
+                Util.Log.d(getTag(), "Connecting to "+address);
                 client.connect(address);
                 client.login(user, password);
                 client.enterLocalPassiveMode();
                 client.setFileType(org.apache.commons.net.ftp.FTP.BINARY_FILE_TYPE);
-                out = client.storeFileStream(folder+"/"+filename);
-                Log.d(getTag(), "Client connected");
+                client.makeDirectory(folder);
+                client.changeWorkingDirectory(folder);
+                out = client.storeFileStream(filename);
+                if (out!=null)
+                    Util.Log.d(getTag(), "File opened: "+filename);
+                else {
+                    Util.Log.w(getTag(), "Cannot create or access file "+filename);
+                    close();
+                }
             } catch (Exception e) {
-                Log.e(getTag(), "Can't connect to " + address + ", user: " + user);
+                Util.Log.e(getTag(), "Can't connect to " + address + ", user: " + user, e);
             }
     }
 
@@ -51,17 +59,17 @@ public class LogFTPUploader extends ILogTarget {
     @Override
     public void close() throws IOException {
         super.close();
+        Util.Log.d(getTag(), "Disconnecting from "+address);
         if (client != null && client.isConnected()) {
             try {
                 client.completePendingCommand();
                 client.logout();
                 client.disconnect();
-                Log.d(getTag(), "Client disconnected");
+                Util.Log.d(getTag(), "Client disconnected");
             } catch (Exception e) {
-                Log.e(getTag(), "Error finalizing FTP connection", e);
+                Util.Log.e(getTag(), "Error finalizing FTP connection", e);
             }
         }
     }
-
 
 }

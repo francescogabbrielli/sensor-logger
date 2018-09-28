@@ -37,7 +37,8 @@ public abstract class ILogTarget {
      * Implement final cleanup
      */
     public void close() throws IOException {
-        out.close();
+        if (out!=null)
+            out.close();
         out = null;
     }
 

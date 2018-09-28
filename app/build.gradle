@@ -10,6 +10,10 @@ android {
         versionCode 8
         versionName "0.3.1"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        ndk {
+            moduleName "sensor-logger"
+            abiFilters 'armeabi-v7a'//, 'arm64-v8a'
+        }
     }
     buildTypes {
         release {

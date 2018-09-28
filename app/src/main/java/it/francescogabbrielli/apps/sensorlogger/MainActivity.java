@@ -6,9 +6,9 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
-import android.hardware.Camera;
 import android.hardware.SensorManager;
 import android.media.AudioManager;
+import android.media.ToneGenerator;
 import android.os.Environment;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
@@ -17,7 +17,6 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -32,11 +31,15 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.JavaCameraView;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
+import org.opencv.imgcodecs.Imgcodecs;
 
 import java.io.File;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Locale;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -46,24 +49,22 @@ public class MainActivity extends AppCompatActivity implements
         CameraBridgeViewBase.CvCameraViewListener {
 
     private final static String TAG = MainActivity.class.getSimpleName();
+    private final static double ONE_BILLION = 1000000000d;
 
     private final static int REQUEST_PERMISSIONS = 3;
 
     static {
         if (!OpenCVLoader.initDebug())
-            Log.e(TAG, "Cannot initialize OpenCV");
+            Util.Log.w(TAG, "Cannot initialize OpenCV!");
     }
 
     private JavaCameraView camera;
-//    private CameraHandlerThread cameraHandlerThread;
-//    private CameraPreview cameraPreview;
-//    private Camera.ShutterCallback shutterCallback;
 
     private SharedPreferences prefs;
 
     private Recorder recorder;
-    private long timestamp, framerate;
-//    private boolean safeToTakePicture;
+    private long timestamp, frameDuration;
+    private String imgFormat;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,25 +86,6 @@ public class MainActivity extends AppCompatActivity implements
 
     }
 
-//    /**
-//     * Take a picture
-//     * @param pictureCallback the callback
-//     */
-//    @Override
-//    public void takePicture(Camera.PictureCallback pictureCallback) {
-//        if (safeToTakePicture)
-//            try {
-//                Camera camera = cameraHandlerThread.getCamera();
-//                camera.startPreview();
-//                safeToTakePicture = false;
-//                //TODO: settings -> image raw data
-//                camera.takePicture(shutterCallback, null, pictureCallback);
-//            } catch (Exception e) {
-//                Log.e(TAG, "Picture not taken", e);
-//                pictureCallback.onData(null, null);
-//            }
-//    }
-
     /**
      * Setup the camera; can be called anytime
      */
@@ -112,26 +94,35 @@ public class MainActivity extends AppCompatActivity implements
         camera.setVisibility(SurfaceView.VISIBLE);
         camera.setCvCameraViewListener(this);
         camera.enableView();
-        framerate = Util.getLongPref(prefs, Util.PREF_LOGGING_RATE);
+        frameDuration = Util.getLongPref(prefs, Util.PREF_LOGGING_RATE);
+        imgFormat = prefs.getString(Util.PREF_CAPTURE_IMGFORMAT, ".png");
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        Log.d(TAG, "onResume");
+        Util.Log.d(TAG, "onResume");
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         verifyPermissions();
     }
 
     @Override
     protected void onPause() {
-        Log.d(TAG, "onPause");
+        Util.Log.d(TAG, "onPause");
         stopRecording(R.string.toast_recording_interrupted);
-        if (animExec!=null)
-            animExec.shutdown();
         if (camera != null)
             camera.disableView();
+        if (toneGenerator!=null)
+            toneGenerator.release();
+        toneGenerator = null;
         super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (animExec!=null)
+            animExec.shutdown();
     }
 
     @Override
@@ -177,8 +168,11 @@ public class MainActivity extends AppCompatActivity implements
 
     private ScheduledExecutorService animExec;
     private ScheduledFuture prepareFuture, recordingFuture;
+    private ToneGenerator toneGenerator;
 
     private void showPrepareAnimation() {
+        if (toneGenerator==null && prefs.getBoolean(Util.PREF_CAPTURE_SOUND, false))
+            toneGenerator = new ToneGenerator(AudioManager.STREAM_MUSIC, 100);
         if (animExec==null)
             animExec = Executors.newSingleThreadScheduledExecutor();
         prepareFuture = animExec.schedule(new Runnable() {
@@ -191,9 +185,13 @@ public class MainActivity extends AppCompatActivity implements
                         int val = 4;
                         try { val = Integer.parseInt(t.getText().toString()); } catch(Exception e) {}
                         if (--val>0) {
+                            if (toneGenerator!=null)
+                                toneGenerator.startTone(ToneGenerator.TONE_CDMA_PIP, 150);
                             t.setText(String.valueOf(val));
                             showPrepareAnimation();
                         } else {
+                            if (toneGenerator!=null)
+                                toneGenerator.startTone(ToneGenerator.TONE_CDMA_PIP, 300);
                             recording = true;
                             recorder.start(MainActivity.this);
                             hidePrepareAnimation();
@@ -212,6 +210,7 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private void showBlinkingAnimation() {
+        timestamp = SystemClock.elapsedRealtimeNanos()- frameDuration;
         if (animExec==null)
             animExec = Executors.newSingleThreadScheduledExecutor();
         recordingFuture = animExec.scheduleAtFixedRate(new Runnable() {
@@ -230,15 +229,24 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private void hideBlinkingAnimation() {
+        if (animExec==null)
+            animExec = Executors.newSingleThreadScheduledExecutor();
         if (recordingFuture!=null)
             recordingFuture.cancel(true);
-        runOnUiThread(new Runnable() {
+        animExec.schedule(new Runnable() {
             @Override
             public void run() {
-                ImageView i = findViewById(R.id.img_record);
-                i.setVisibility(View.INVISIBLE);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ImageView i = findViewById(R.id.img_record);
+                        i.setVisibility(View.INVISIBLE);
+                        if (toneGenerator!=null)
+                            toneGenerator.startTone(ToneGenerator.TONE_CDMA_CONFIRM, 300);
+                    }
+                });
             }
-        });
+        }, 0, TimeUnit.SECONDS);
     }
 
     void stopRecording(int msg) {
@@ -310,20 +318,20 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     protected void onPermissionOk(String permission) {
-        Log.d(TAG, "Permission ok: " + permission);
+        Util.Log.d(TAG, "Permission ok: " + permission);
         if (Manifest.permission.CAMERA.equals(permission)) {
             setupCamera();
         } else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission)) {
             File dir = new File(Environment.getExternalStorageDirectory(),
                     getString(R.string.app_folder));
             if (dir.mkdirs())
-                Log.i(TAG, "Creating app folder " + dir.getAbsolutePath());
+                Util.Log.i(TAG, "Creating app folder " + dir.getAbsolutePath());
         } else if (Manifest.permission.INTERNET.equals(permission)) {
         }
     }
 
     protected void onPermissionGranted(String permission) {
-        Log.d(TAG, "Permission granted: " + permission);
+        Util.Log.d(TAG, "Permission granted: " + permission);
         if (Manifest.permission.CAMERA.equals(permission)) {
             prefs.edit().putBoolean(Util.PREF_CAPTURE_CAMERA, true).apply();
         } else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission)) {
@@ -334,7 +342,7 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     protected void onPermissionDenied(String permission) {
-        Log.d(TAG, "Permission denied: " + permission);
+        Util.Log.d(TAG, "Permission denied: " + permission);
         if (Manifest.permission.CAMERA.equals(permission))
             prefs.edit().putBoolean(Util.PREF_CAPTURE_CAMERA, false).apply();
         else if (Manifest.permission.INTERNET.equals(permission))
@@ -350,28 +358,62 @@ public class MainActivity extends AppCompatActivity implements
     // ---------------------------------- OPENCV CAMERA CALLBACKS ----------------------------------
     //    @Override
     public void onCameraViewStarted(int width, int height) {
-        Log.d(TAG, String.format("openCV Camera started: %dx%d", width, height));
+        Util.Log.d(TAG, String.format("openCV camera started: %dx%d", width, height));
+        frameExec = Executors.newSingleThreadExecutor();
+        frameDurationAvg = frameDuration;
+        frameNumber = 0;
+        lastTime = 0;
     }
 
+    double frameDurationAvg;//milliseconds
+    long frameNumber, lastTime;
+    int lastFps;
+    private Executor frameExec;
 
-    private long t, max=0, min=1000000000, n=0;
-    double avg;
+    private void fps(long t) {
+        if (lastTime>0) {
+            frameDurationAvg = (frameDurationAvg * frameNumber + t - lastTime) / ++frameNumber;
+            if (frameNumber>40)
+                frameNumber=1;
+            double duration = recording ? Math.max(frameDuration, frameDurationAvg) : frameDurationAvg;
+            final int fps = (int) (ONE_BILLION/duration + 0.5d);
+            if (fps!=lastFps)
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        TextView tv = findViewById(R.id.text_fps);
+                        tv.setText(String.format(Locale.US, "%d FPS", fps));
+                        lastFps = fps;
+                    }
+                });
+        }
+        lastTime = t;
+    }
 
     @Override
-    public Mat onCameraFrame(Mat inputFrame) {
-        long t = SystemClock.elapsedRealtimeNanos();
-        if (recording && t-timestamp >= framerate) {
-            byte[] buff = new byte[(int) (inputFrame.total() * inputFrame.channels())];
-            inputFrame.get(0, 0, buff);
-            recorder.onData(buff, timestamp);
+    public Mat onCameraFrame(final Mat inputFrame) {
+        final long t = SystemClock.elapsedRealtimeNanos();
+        fps(t);
+        if (recording && t-timestamp >= frameDuration) {
+            frameExec.execute(new Runnable() {
+                @Override
+                public void run() {
+                    MatOfByte buf = new MatOfByte();
+                    Imgcodecs.imencode(imgFormat, inputFrame, buf);
+                    recorder.record(buf.toArray(), t);
+                }
+            });
+            timestamp = t;
         }
-        timestamp = t;
         return inputFrame;
     }
 
     @Override
     public void onCameraViewStopped() {
-        Log.d(TAG, "openCV Camera stopped ~ "+avg);
+        Util.Log.d(TAG, String.format("openCV camera stopped ~ %2.1f (%d) [target=%2.1f])",
+                ONE_BILLION/frameDurationAvg,
+                (int) (frameDurationAvg/1000000),
+                ONE_BILLION/frameDuration));
     }
     //
     // ----------------------------------- ---------------------- ----------------------------------

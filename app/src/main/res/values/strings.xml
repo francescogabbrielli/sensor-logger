@@ -16,8 +16,8 @@
 
     <string name="pref_ftp_title">Enable FTP Upload</string>
     <string name="pref_ftp_description">If this is enabled, the data will be logged through FTP to a remote server</string>
-    <string name="pref_ftp_address_title">IP address</string>
-    <string name="pref_ftp_user_title">User</string>
+    <string name="pref_ftp_address_title">Host address</string>
+    <string name="pref_ftp_user_title">Username</string>
     <string name="pref_ftp_pw_title">Password</string>
 
     <!-- Settings -> Logging -->
@@ -70,11 +70,22 @@
     <string name="pref_capture_camera_title">Camera</string>
     <string name="pref_capture_camera_description">Capture frames from the main camera present on the device</string>
 
+    <string name="pref_capture_imgformat_title">Image Format</string>
+    <string name="pref_capture_imgformat_description">Save images as %s</string>
+    <string-array name="pref_capture_imgformat_list_titles">
+        <item>PNG</item>
+        <item>JPEG</item>
+    </string-array>
+    <string-array name="pref_capture_imgformat_list_values">
+        <item>.png</item>
+        <item>.jpg</item>
+    </string-array>
+
     <string name="pref_capture_screen_title">Screen</string>
     <string name="pref_capture_screen_description">Capture device\'s screen</string>
 
     <string name="pref_capture_sound_title">Play sound</string>
-    <string name="pref_capture_sound_description">Play a shutter-like sound whenever a frame is captured</string>
+    <string name="pref_capture_sound_description">Play sounds on record operations</string>
 
     <string name="alert_permission_denied">WARNING! Denying the permission will set this preference back to its default</string>
 </resources>
