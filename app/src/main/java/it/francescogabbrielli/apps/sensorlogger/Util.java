@@ -157,10 +157,10 @@ public class Util {
         camera.setDisplayOrientation(result);
     }
 
-    public static int getIntPref(SharedPreferences prefs, String prefKey) {
-        int ret = 0;
+    public static long getLongPref(SharedPreferences prefs, String prefKey) {
+        long ret = 0;
         try {
-            ret = Integer.parseInt(prefs.getString(prefKey, "0"));
+            ret = Long.parseLong(prefs.getString(prefKey, "0"));
         } catch(Exception e) {}
         return ret;
     }

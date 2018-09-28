@@ -29,16 +29,22 @@
     <string name="pref_logging_conf_title">Output Configuration</string>
 
     <string-array name="pref_logging_rate_list_titles">
+        <item>25 fps</item>
+        <item>20 fps</item>
+        <item>15 fps</item>
         <item>10 fps</item>
         <item>5 fps</item>
         <item>2 fps</item>
         <item>1 fps</item>
     </string-array>
     <string-array name="pref_logging_rate_list_values">
-        <item>100</item>
-        <item>200</item>
-        <item>500</item>
-        <item>1000</item>
+        <item>40000000</item>
+        <item>50000000</item>
+        <item>66666667</item>
+        <item>100000000</item>
+        <item>200000000</item>
+        <item>500000000</item>
+        <item>1000000000</item>
     </string-array>
 
     <string name="pref_logging_headers_title">Log headers</string>

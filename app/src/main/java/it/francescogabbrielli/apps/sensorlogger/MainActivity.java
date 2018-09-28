@@ -21,13 +21,17 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import org.opencv.android.CameraBridgeViewBase;
+import org.opencv.android.JavaCameraView;
+import org.opencv.android.OpenCVLoader;
+import org.opencv.core.Mat;
 
 import java.io.File;
 import java.util.LinkedList;
@@ -39,22 +43,27 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity implements
-        SurfaceHolder.Callback,
-        ICamera {
+        CameraBridgeViewBase.CvCameraViewListener {
 
     private final static String TAG = MainActivity.class.getSimpleName();
 
     private final static int REQUEST_PERMISSIONS = 3;
 
-    private CameraHandlerThread cameraHandlerThread;
-    private CameraPreview cameraPreview;
-    private Camera.ShutterCallback shutterCallback;
+    static {
+        if (!OpenCVLoader.initDebug())
+            Log.e(TAG, "Cannot initialize OpenCV");
+    }
+
+    private JavaCameraView camera;
+//    private CameraHandlerThread cameraHandlerThread;
+//    private CameraPreview cameraPreview;
+//    private Camera.ShutterCallback shutterCallback;
 
     private SharedPreferences prefs;
 
     private Recorder recorder;
-
-    private boolean safeToTakePicture;
+    private long timestamp, framerate;
+//    private boolean safeToTakePicture;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,62 +78,41 @@ public class MainActivity extends AppCompatActivity implements
 
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
         recorder = new Recorder(
-                new SensorReader((SensorManager) getSystemService(SENSOR_SERVICE), prefs),
-                this);
+                new SensorReader((SensorManager) getSystemService(SENSOR_SERVICE), prefs));
 
         //start the service
         startService(new Intent(this, LoggingService.class));
 
     }
 
-    /**
-     * Take a picture
-     * @param pictureCallback the callback
-     */
-    @Override
-    public void takePicture(Camera.PictureCallback pictureCallback) {
-        if (safeToTakePicture)
-            try {
-                Camera camera = cameraHandlerThread.getCamera();
-                camera.startPreview();
-                safeToTakePicture = false;
-                //TODO: settings -> image raw data
-                camera.takePicture(shutterCallback, null, pictureCallback);
-            } catch (Exception e) {
-                Log.e(TAG, "Picture not taken", e);
-                pictureCallback.onPictureTaken(null, null);
-            }
-    }
-
-    @Override
-    public void done(boolean ok) {
-        if (!ok)
-            stopRecording(R.string.toast_recording_offlimits);
-        safeToTakePicture = true;
-    }
+//    /**
+//     * Take a picture
+//     * @param pictureCallback the callback
+//     */
+//    @Override
+//    public void takePicture(Camera.PictureCallback pictureCallback) {
+//        if (safeToTakePicture)
+//            try {
+//                Camera camera = cameraHandlerThread.getCamera();
+//                camera.startPreview();
+//                safeToTakePicture = false;
+//                //TODO: settings -> image raw data
+//                camera.takePicture(shutterCallback, null, pictureCallback);
+//            } catch (Exception e) {
+//                Log.e(TAG, "Picture not taken", e);
+//                pictureCallback.onData(null, null);
+//            }
+//    }
 
     /**
      * Setup the camera; can be called anytime
      */
     private void setupCamera() {
-
-        // Start a handler thread for the camera operation if not already started
-        if (cameraHandlerThread == null) {
-            cameraHandlerThread = new CameraHandlerThread(this);
-            cameraPreview = new CameraPreview(this);
-            FrameLayout preview = findViewById(R.id.recording_preview);
-            preview.addView(cameraPreview);
-        }
-
-        // Click sound
-        shutterCallback = prefs.getBoolean(Util.PREF_CAPTURE_SOUND, false) ?
-                new Camera.ShutterCallback() {
-                    @Override
-                    public void onShutter() {
-                        AudioManager mgr = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-                        mgr.playSoundEffect(AudioManager.FLAG_PLAY_SOUND);
-                    }
-                } : null;
+        camera = findViewById(R.id.camera_view);
+        camera.setVisibility(SurfaceView.VISIBLE);
+        camera.setCvCameraViewListener(this);
+        camera.enableView();
+        framerate = Util.getLongPref(prefs, Util.PREF_LOGGING_RATE);
     }
 
     @Override
@@ -141,6 +129,8 @@ public class MainActivity extends AppCompatActivity implements
         stopRecording(R.string.toast_recording_interrupted);
         if (animExec!=null)
             animExec.shutdown();
+        if (camera != null)
+            camera.disableView();
         super.onPause();
     }
 
@@ -160,26 +150,25 @@ public class MainActivity extends AppCompatActivity implements
         return super.onOptionsItemSelected(item);
     }
 
-    private boolean recording;
+    private boolean recPressed, recording;
     private long lastPressed;
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (SystemClock.elapsedRealtime()-lastPressed>1000)
+        if (SystemClock.elapsedRealtime()-lastPressed>750)
             if (keyCode==KeyEvent.KEYCODE_VOLUME_DOWN || keyCode==KeyEvent.KEYCODE_VOLUME_UP ) {
                 lastPressed = SystemClock.elapsedRealtime();
                 AudioManager mgr = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-                if (!recording) {
-                    recording = true;
-                    recorder.start(this);
+                if (!recPressed) {
+                    recPressed = true;
                     mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
                     showPrepareAnimation();
                 } else {
                     mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
                     stopRecording(R.string.toast_recording_stop);
-                    // restart preview ???
-                    if (cameraHandlerThread != null)
-                        cameraHandlerThread.restart();
+//                    // restart preview ???
+//                    if (cameraHandlerThread != null)
+//                        cameraHandlerThread.restart();
                 }
                 return true;
             }
@@ -205,6 +194,8 @@ public class MainActivity extends AppCompatActivity implements
                             t.setText(String.valueOf(val));
                             showPrepareAnimation();
                         } else {
+                            recording = true;
+                            recorder.start(MainActivity.this);
                             hidePrepareAnimation();
                             showBlinkingAnimation();
                         }
@@ -237,22 +228,28 @@ public class MainActivity extends AppCompatActivity implements
         }, 0, 500, TimeUnit.MILLISECONDS);
 
     }
+
     private void hideBlinkingAnimation() {
         if (recordingFuture!=null)
             recordingFuture.cancel(true);
-        ImageView i = findViewById(R.id.img_record);
-        i.setVisibility(View.INVISIBLE);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                ImageView i = findViewById(R.id.img_record);
+                i.setVisibility(View.INVISIBLE);
+            }
+        });
     }
 
-    private void stopRecording(int msg) {
-        if (recording)
+    void stopRecording(int msg) {
+        if (recPressed)
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+        recPressed = false;
         recording = false;
         recorder.stop();
         hidePrepareAnimation();
         hideBlinkingAnimation();
     }
-
 
     //<editor-fold desc="Permissions">
     // ----------------------------------- PERMISSIONS MANAGEMENT ----------------------------------
@@ -289,7 +286,7 @@ public class MainActivity extends AppCompatActivity implements
         if (!requests.isEmpty()) {
             // We don't have permission so prompt the user
             ActivityCompat.requestPermissions(this,
-                    requests.toArray(new String[requests.size()]),
+                    requests.toArray(new String[0]),
                     REQUEST_PERMISSIONS
             );
         }
@@ -349,69 +346,34 @@ public class MainActivity extends AppCompatActivity implements
     // ----------------------------------- ---------------------- ----------------------------------
     //</editor-fold>
 
-
-    //<editor-fold desc="Camera Surface">
-    // ---------------------------------- CAMERA SURFACE CALLBACKS ---------------------------------
-    //
-    public void surfaceCreated(SurfaceHolder holder) {
-        cameraHandlerThread.openCamera(holder, null);
-        safeToTakePicture = true;
-        Log.d(TAG, "Start");
-//        new Runnable() {
-//            @Override
-//            public void run() {
-//                cameraHandlerThread.restart();
-//            }
-//        });
+    //<editor-fold desc="OpenCV Callbacks">
+    // ---------------------------------- OPENCV CAMERA CALLBACKS ----------------------------------
+    //    @Override
+    public void onCameraViewStarted(int width, int height) {
+        Log.d(TAG, String.format("openCV Camera started: %dx%d", width, height));
     }
 
-    public void surfaceChanged(final SurfaceHolder holder, final int format, final int w, final int h) {
 
-        Camera camera = cameraHandlerThread.getCamera();
-        if (camera == null) {
-//            cameraHandlerThread.openCamera(holder, new Runnable() {
-//                @Override
-//                public void run() {
-//                    surfaceChanged(holder, format, w, h);
-//                }
-//            });
-            return;
+    private long t, max=0, min=1000000000, n=0;
+    double avg;
+
+    @Override
+    public Mat onCameraFrame(Mat inputFrame) {
+        long t = SystemClock.elapsedRealtimeNanos();
+        if (recording && t-timestamp >= framerate) {
+            byte[] buff = new byte[(int) (inputFrame.total() * inputFrame.channels())];
+            inputFrame.get(0, 0, buff);
+            recorder.onData(buff, timestamp);
         }
-
-        Log.d(TAG, "Camera change: " + camera);
-
-        // If your preview can change or rotate, take care of those events here.
-        // Make sure to stop the preview before resizing or reformatting it.
-//        if (holder.getSurface() == null)
-//            return;
-
-//        // stop preview before making changes
-//        try {
-//            camera.stopPreview();
-//        } catch (Exception e) {
-//            // ignore: tried to stop a non-existent preview
-//        }
-
-//        mCamera.setPreviewCallback(null);
-        // set preview size and make any resize, rotate or
-        // reformatting changes here
-
-        // start preview with new settings
-        try {
-            camera.setPreviewDisplay(holder);
-            camera.startPreview();
-            safeToTakePicture = true;
-            Log.d(TAG, "Restart");
-        } catch (Exception e) {
-            Log.e(TAG, "Error starting camera preview", e);
-        }
+        timestamp = t;
+        return inputFrame;
     }
 
-    public void surfaceDestroyed(SurfaceHolder holder) {
-        cameraHandlerThread.closeCamera();
+    @Override
+    public void onCameraViewStopped() {
+        Log.d(TAG, "openCV Camera stopped ~ "+avg);
     }
     //
     // ----------------------------------- ---------------------- ----------------------------------
     //</editor-fold>
-
 }
