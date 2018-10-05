@@ -6,6 +6,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorManager;
 import android.os.Build;
 import android.preference.PreferenceManager;
+import android.util.Log;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -19,6 +20,9 @@ public class Util {
 
     private final static String TAG = Util.class.getSimpleName();
 
+    public final static int LOG_IMAGE = 1;
+    public final static int LOG_DATA = 2;
+
     public final static String PREF_APP_FOLDER      = "pref_app_folder";
     public final static String PREF_FILENAME_DATA   = "pref_filename_data";
     public final static String PREF_FILENAME_FRAME  = "pref_filename_frame";
@@ -28,10 +32,12 @@ public class Util {
     public final static String PREF_FTP_ADDRESS     = "pref_ftp_address";
     public final static String PREF_FTP_USER        = "pref_ftp_user";
     public final static String PREF_FTP_PW          = "pref_ftp_pw";
+    public final static String PREF_STREAMING       = "pref_streaming";
     public final static String PREF_LOGGING_RATE    = "pref_logging_rate";
     public final static String PREF_LOGGING_HEADERS = "pref_logging_headers";
     public final static String PREF_LOGGING_TIME    = "pref_logging_time";
     public final static String PREF_LOGGING_TIMESTAMP = "pref_logging_timestamp";
+    public final static String PREF_LOGGING_TIMESTAMP_FORMAT = "pref_logging_timestamp_format";
 
     public final static String PREF_CAPTURE_CAMERA  = "pref_capture_camera";
     public final static String PREF_CAPTURE_IMGFORMAT = "pref_capture_imgformat";
@@ -48,21 +54,21 @@ public class Util {
 
     public static class Log {
         public static void w(String tag, String msg) {
-            Log.w(tag, msg);
+            android.util.Log.w(tag, msg);
         }
         public static void e(String tag, String msg, Throwable t) {
-            Log.e(tag, msg, t);
+            android.util.Log.e(tag, msg, t);
         }
         public static void i(String tag, String msg) {
-            Log.i(tag, msg);
+            android.util.Log.i(tag, msg);
         }
         public static void d(String tag, String msg) {
             if (BuildConfig.DEBUG)
-                Log.d(tag, msg);
+                android.util.Log.d(tag, msg);
         }
         public static void v(String tag, String msg) {
             if (BuildConfig.DEBUG)
-                Log.v(tag, msg);
+                android.util.Log.v(tag, msg);
         }
     }
 
@@ -152,6 +158,10 @@ public class Util {
             }
         }
         return ret;
+    }
+
+    public static int getIntPref(SharedPreferences prefs, String prefKey) {
+        return Integer.valueOf(prefs.getString(prefKey, "0"));
     }
 
     public static long getLongPref(SharedPreferences prefs, String prefKey) {

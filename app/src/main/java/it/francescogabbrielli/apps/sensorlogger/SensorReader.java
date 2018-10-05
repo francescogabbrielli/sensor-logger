@@ -24,8 +24,13 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
 
     private final SparseArray<SensorEvent> readings;
     private HandlerThread ht;
-    private Handler handler;
 
+    /**
+     * Setup which sensor to be read based on preferences
+     *
+     * @param sensorManager the Android {@link SensorManager}
+     * @param prefs the app preferences
+     */
     SensorReader(SensorManager sensorManager, SharedPreferences prefs) {
         this.sensorManager = sensorManager;
         readings = new SparseArray<>();
@@ -36,10 +41,13 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
             }
         });
         for (String prefKey : prefs.getAll().keySet())
-            if (prefKey.startsWith("pref_sensor_") && prefs.getBoolean(prefKey, false))
+            if (prefKey.startsWith("pref_sensor_") && !prefKey.endsWith("_length") && prefs.getBoolean(prefKey, false))
                 sensors.add(sensorManager.getDefaultSensor(Integer.parseInt(prefKey.substring(12))));
     }
 
+    /**
+     * Start reading sensor data in a specific thread as fast as possible
+     */
     public void start() {
         if (ht==null) {
             ht = new HandlerThread(getClass().getSimpleName());
@@ -50,6 +58,9 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
         }
     }
 
+    /**
+     * Stop reading sensor data
+     */
     public void stop() {
         if (ht!=null) {
             ht.quitSafely();
@@ -59,6 +70,10 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
         }
     }
 
+    /**
+     * Iterate through all the desired sensors
+     * @return the iterator
+     */
     @NonNull
     @Override
     public Iterator<SensorEvent> iterator() {

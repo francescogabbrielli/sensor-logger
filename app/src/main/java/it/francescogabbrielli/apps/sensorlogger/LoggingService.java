@@ -3,7 +3,6 @@ package it.francescogabbrielli.apps.sensorlogger;
 import android.app.Service;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -12,34 +11,28 @@ import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
-import org.opencv.imgcodecs.Imgcodecs;
-
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 
 /**
- * An {@link android.app.Service} subclass for handling asynchronous task requests in
- * a service on a separate handler thread.
- * <p>
- * helper methods.
+ * A {@link android.app.Service} subclass for handling asynchronous task requests in
+ * a service on a separate handler threads.
  */
 public class LoggingService extends Service {
 
     private final static String TAG = LoggingService.class.getSimpleName();
 
-    public static final String ACTION_START = "it.francescogabbrielli.apps.sensorlogger.action.START";
-    public static final String ACTION_STOP  = "it.francescogabbrielli.apps.sensorlogger.action.STOP";
+    public static final String ACTION_START = "it.francescogabbrielli.apps.sensorlogger.action.START_SERVICE";
+    public static final String ACTION_STOP  = "it.francescogabbrielli.apps.sensorlogger.action.STOP_SERVICE";
 
     private IBinder binder = new Binder();
 
-    private final List<ILogTarget> openLoggers, atomicLoggers;
+    private final List<LogTarget> openLoggers, atomicLoggers;
     private SharedPreferences prefs;
 
     HandlerThread thread;
     Handler handler;
-    private String ext;
 
 
     public class Binder extends android.os.Binder {
@@ -60,7 +53,6 @@ public class LoggingService extends Service {
         thread = new HandlerThread("Service Thread");
         thread.start();
         handler = new Handler(thread.getLooper());
-        atomicLoggers.addAll(newLoggers());
     }
 
     @Override
@@ -78,15 +70,18 @@ public class LoggingService extends Service {
 
     @Nullable
     @Override
-    public IBinder onBind(Intent intent) {
+    public IBinder onBind(Intent intent) {//Bound Service
         Util.Log.v(TAG, "in onBind");
+        atomicLoggers.clear();
+        atomicLoggers.addAll(newLoggers(Util.LOG_IMAGE));
         return binder;
     }
 
     @Override
     public void onRebind(Intent intent) {
         Util.Log.v(TAG, "in onRebind");
-        ext = prefs.getString(Util.PREF_CAPTURE_IMGFORMAT, ".png");
+        atomicLoggers.clear();
+        atomicLoggers.addAll(newLoggers(Util.LOG_IMAGE));
         super.onRebind(intent);
     }
 
@@ -97,6 +92,12 @@ public class LoggingService extends Service {
     }
 
     @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        Util.Log.d(TAG, "onTrimMemory: "+level);
+    }
+
+    @Override
     public void onLowMemory() {
         super.onLowMemory();
         Util.Log.d(TAG, "onLowMemory");
@@ -104,19 +105,27 @@ public class LoggingService extends Service {
 
     @Override
     public void onDestroy() {
-        atomicLoggers.clear();
-        openLoggers.clear();
-        thread.quit();
+        synchronized (this) {
+            for (LogTarget logTarget : atomicLoggers)
+                logTarget.dispose();
+            atomicLoggers.clear();
+            for (LogTarget logTarget : openLoggers)
+                logTarget.dispose();
+            openLoggers.clear();
+            thread.quit();
+        }
         Util.Log.d(TAG, "onDestroy");
         super.onDestroy();
     }
 
-    private List<ILogTarget> newLoggers() {
-        List<ILogTarget> ret = new LinkedList<>();
-        if (prefs.getBoolean(Util.PREF_FILE, false))
-            ret.add(new LogFileWriter(prefs));
-        if (prefs.getBoolean(Util.PREF_FTP, false))
-            ret.add(new LogFTPUploader(prefs));
+    private List<LogTarget> newLoggers(int mask) {
+        List<LogTarget> ret = new LinkedList<>();
+        if ((Util.getIntPref(prefs, Util.PREF_FILE) & mask)==mask)
+            ret.add(new LogFile(prefs));
+        if ((Util.getIntPref(prefs, Util.PREF_FTP) & mask)==mask)
+            ret.add(new LogFtp(prefs));
+        if ((Util.getIntPref(prefs, Util.PREF_STREAMING) & mask)==mask)
+            ret.add(new LogStreaming(prefs));
         return ret;
     }
 
@@ -132,48 +141,35 @@ public class LoggingService extends Service {
     }
 
     /**
-     * Log on available {@link ILogTarget}s
+     * Log on available {@link LogTarget}s
      * @param folder
      * @param filename
      * @param type
      * @param data
      */
-    public void log(final String folder, final String filename, final int type, final Object data) {
-        Util.Log.v(TAG, "Logging to "+filename+" type "+type+"; data: "+(data!=null));
-        handler.post(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    switch(type) {
-                        case ILogTarget.OPEN:
-                            if (openLoggers.isEmpty())
-                                openLoggers.addAll(newLoggers());
-                            for (ILogTarget t : openLoggers)
-                                t.open(folder, filename);
-                        case ILogTarget.WRITE:
-                            for (ILogTarget t : openLoggers)
-                                t.write((byte[]) data);
-                            break;
-                        case ILogTarget.CLOSE:
-                            for (ILogTarget t : openLoggers)
-                                t.close();
-                            openLoggers.clear();
-                            break;
-                        case ILogTarget.SEND:
-                            for (ILogTarget t : atomicLoggers) {
-                                t.open(folder, filename);
-                                t.write((byte[]) data);
-                                t.close();
-                            }
-                            break;
-                    }
-//                    Util.Log.d(TAG, "Logged to "+filename+", type "+type);
-                } catch(Exception exc) {
-                    Util.Log.e(TAG, "Logging error", exc);
-                }
-            }
-        });
+    public synchronized void log(final String folder, final String filename, final int type, final byte[] data) {
+        LogOperation operate = new LogOperation(type, data, folder, filename);
+        if (type==LogTarget.SEND) {
+            for (LogTarget t : atomicLoggers)
+                operate.on(t);
+        } else {
+            if (type==LogTarget.OPEN && openLoggers.isEmpty())
+                openLoggers.addAll(newLoggers(Util.LOG_DATA));
+            for (LogTarget t : openLoggers)
+                operate.on(t);
+            if (type==LogTarget.CLOSE)
+                openLoggers.clear();
+        }
+    }
 
+    private synchronized boolean isRunning() {
+        for (LogTarget t : openLoggers)
+            if(t.isRunning())
+                return true;
+        for (LogTarget t : atomicLoggers)
+            if(t.isRunning())
+                return true;
+        return false;
     }
 
     /**
@@ -184,10 +180,15 @@ public class LoggingService extends Service {
         handler.post(new Runnable() {
             @Override
             public void run() {
+                boolean done;
+                do {
+                    done = !isRunning();
+                    try {Thread.sleep(100);}
+                    catch(Exception e) {}
+                } while(!done);
                 stopSelf();
             }
         });
     }
-
 
 }

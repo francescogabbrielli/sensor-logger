@@ -1,9 +1,9 @@
 <preference-headers xmlns:android="http://schemas.android.com/apk/res/android">
 
     <header
-        android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$CapturePreferenceFragment"
-        android:icon="@drawable/ic_capture_24dp"
-        android:title="@string/pref_capture_header" />
+        android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$LoggingPreferenceFragment"
+        android:icon="@drawable/ic_record_24dp"
+        android:title="@string/pref_logging_header" />
 
     <header
         android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$SensorsPreferenceFragment"
@@ -11,9 +11,9 @@
         android:title="@string/pref_sensors_header" />
 
     <header
-        android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$LoggingPreferenceFragment"
-        android:icon="@drawable/ic_record_24dp"
-        android:title="@string/pref_logging_header" />
+        android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$CapturePreferenceFragment"
+        android:icon="@drawable/ic_capture_24dp"
+        android:title="@string/pref_capture_header" />
 
     <header
         android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$FilePreferenceFragment"

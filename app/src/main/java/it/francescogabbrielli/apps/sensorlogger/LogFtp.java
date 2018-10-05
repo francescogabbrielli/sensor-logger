@@ -1,25 +1,23 @@
 package it.francescogabbrielli.apps.sensorlogger;
 
 import android.content.SharedPreferences;
-import android.util.Log;
 
 import org.apache.commons.net.ftp.FTPClient;
 
 import java.io.IOException;
 
-public class LogFTPUploader extends ILogTarget {
+public class LogFtp extends LogTarget {
 
     private FTPClient client;
     private String address, user, password;
 
     /**
-     * Creates a new FTP uploader, that is a wrapper around Apache Commons FTPClient with threading
-     * support and configuration linked to application settings
+     * Creates a new FTP uploader, that is a wrapper around Apache Commons FTPClient
      *
      * @param prefs the application preferences
      * @see Util#PREF_FTP_ADDRESS, Util#PREF_FTP_USER, Util#PREF_FTP_PW
      */
-    public LogFTPUploader(SharedPreferences prefs) {
+    public LogFtp(SharedPreferences prefs) {
         super(prefs);
         client = new FTPClient();
         address = prefs.getString(Util.PREF_FTP_ADDRESS, "");

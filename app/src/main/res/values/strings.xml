@@ -10,12 +10,25 @@
     <string name="toast_recording_offlimits">Recording reached maximum length</string>
 
     <!-- Strings related to Settings -->
+    <string-array name="pref_logtarget_list_titles">
+        <item>Disabled</item>
+        <item>Images</item>
+        <item>Data</item>
+        <item>Both</item>
+    </string-array>
+    <string-array name="pref_logtarget_list_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
 
     <!-- Settings -> FTP -->
     <string name="pref_ftp_header">FTP</string>
 
-    <string name="pref_ftp_title">Enable FTP Upload</string>
-    <string name="pref_ftp_description">If this is enabled, the data will be logged through FTP to a remote server</string>
+    <string name="pref_ftp_title">Enable Image FTP Upload</string>
+    <string name="pref_ftp_description">The data logged will be transferred through FTP to a remote server: %s</string>
+
     <string name="pref_ftp_address_title">Host address</string>
     <string name="pref_ftp_user_title">Username</string>
     <string name="pref_ftp_pw_title">Password</string>
@@ -57,8 +70,8 @@
     <string name="pref_logging_timestamp_description">Append timestamp to the output filename (if any)</string>
 
     <string name="pref_file_header">File</string>
-    <string name="pref_file_title">Save data to a local folder</string>
-    <string name="pref_file_description">If this is enabled, the data will be saved in the local filesystem</string>
+    <string name="pref_file_title">Save frames/data to a local folder</string>
+    <string name="pref_file_description">The data will be saved in the local filesystem: %s</string>
 
     <!-- Settings -> Sensors -->
     <string name="pref_sensors_header">Sensors</string>

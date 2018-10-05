@@ -58,7 +58,7 @@ public class MainActivity extends AppCompatActivity implements
             Util.Log.w(TAG, "Cannot initialize OpenCV!");
     }
 
-    private JavaCameraView camera;
+    private JavaCameraView camera;//OpenCV Camera View
 
     private SharedPreferences prefs;
 
@@ -271,11 +271,11 @@ public class MainActivity extends AppCompatActivity implements
 
         // List all permissions that are involved in activated features
         List<String> requests = new LinkedList<>();
-        if (prefs.getBoolean(Util.PREF_FILE, false))
-            requests.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
         if (prefs.getBoolean(Util.PREF_CAPTURE_CAMERA, false))
             requests.add(Manifest.permission.CAMERA);
-        if (prefs.getBoolean(Util.PREF_FTP, false))
+        if (Util.getIntPref(prefs, Util.PREF_FILE)>0)
+            requests.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        if (Util.getIntPref(prefs, Util.PREF_FTP)>0)
             requests.add(Manifest.permission.INTERNET);
 
         // Check if we have requested permission
@@ -332,23 +332,27 @@ public class MainActivity extends AppCompatActivity implements
 
     protected void onPermissionGranted(String permission) {
         Util.Log.d(TAG, "Permission granted: " + permission);
+        //XXX: don't really need to set these...
         if (Manifest.permission.CAMERA.equals(permission)) {
             prefs.edit().putBoolean(Util.PREF_CAPTURE_CAMERA, true).apply();
         } else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission)) {
-            prefs.edit().putBoolean(Util.PREF_FILE, true).apply();
+            //prefs.edit().putBoolean(Util.PREF_FILE, true).apply();
         } else if (Manifest.permission.INTERNET.equals(permission)) {
-            prefs.edit().putBoolean(Util.PREF_FTP, true).apply();
+            //prefs.edit().putBoolean(Util.PREF_FTP, true).apply();
         }
     }
 
     protected void onPermissionDenied(String permission) {
         Util.Log.d(TAG, "Permission denied: " + permission);
-        if (Manifest.permission.CAMERA.equals(permission))
-            prefs.edit().putBoolean(Util.PREF_CAPTURE_CAMERA, false).apply();
-        else if (Manifest.permission.INTERNET.equals(permission))
-            prefs.edit().putBoolean(Util.PREF_FTP, false).apply();
-        else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission))
-            prefs.edit().putBoolean(Util.PREF_FILE, false).apply();
+        if (Manifest.permission.CAMERA.equals(permission)) {
+            prefs.edit()
+                    .putBoolean(Util.PREF_CAPTURE_CAMERA, false)
+                    .putString(Util.PREF_STREAMING, "0").apply();
+        } else if (Manifest.permission.INTERNET.equals(permission)) {
+            prefs.edit().putString(Util.PREF_FTP, "0").apply();
+        } else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission)) {
+            prefs.edit().putString(Util.PREF_FILE, "0").apply();
+        }
     }
     //
     // ----------------------------------- ---------------------- ----------------------------------
@@ -358,7 +362,7 @@ public class MainActivity extends AppCompatActivity implements
     // ---------------------------------- OPENCV CAMERA CALLBACKS ----------------------------------
     //    @Override
     public void onCameraViewStarted(int width, int height) {
-        Util.Log.d(TAG, String.format("openCV camera started: %dx%d", width, height));
+        Util.Log.d(TAG, String.format(Locale.US, "openCV camera started: %dx%d", width, height));
         frameExec = Executors.newSingleThreadExecutor();
         frameDurationAvg = frameDuration;
         frameNumber = 0;
@@ -390,17 +394,23 @@ public class MainActivity extends AppCompatActivity implements
         lastTime = t;
     }
 
+    /**
+     * Receive a frame from OpenCV whenever is available
+     *
+     * @param inputFrame the frame
+     * @return the (eventually modified) frame
+     */
     @Override
     public Mat onCameraFrame(final Mat inputFrame) {
         final long t = SystemClock.elapsedRealtimeNanos();
-        fps(t);
-        if (recording && t-timestamp >= frameDuration) {
+        fps(t);//compute fps and show on screen
+        if (recording && t-timestamp >= frameDuration) {// check if enough time is passed to record the next frame (during recording)
             frameExec.execute(new Runnable() {
                 @Override
                 public void run() {
-                    MatOfByte buf = new MatOfByte();
-                    Imgcodecs.imencode(imgFormat, inputFrame, buf);
-                    recorder.record(buf.toArray(), t);
+                    MatOfByte buf = new MatOfByte();//buffer: is the way OpenCV encodes bitmaps
+                    Imgcodecs.imencode(imgFormat, inputFrame, buf);//encode the frame into the buffer buf in the format specified by imgFormat
+                    recorder.record(buf.toArray(), t);//record the frame
                 }
             });
             timestamp = t;
@@ -410,7 +420,7 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onCameraViewStopped() {
-        Util.Log.d(TAG, String.format("openCV camera stopped ~ %2.1f (%d) [target=%2.1f])",
+        Util.Log.d(TAG, String.format(Locale.US, "openCV camera stopped ~ %2.1f (%d) [target=%2.1f])",
                 ONE_BILLION/frameDurationAvg,
                 (int) (frameDurationAvg/1000000),
                 ONE_BILLION/frameDuration));

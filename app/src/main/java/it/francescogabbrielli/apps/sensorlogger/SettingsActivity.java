@@ -202,6 +202,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
             addPreferencesFromResource(R.xml.pref_file);
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_FILE));
         }
     }
 
@@ -210,6 +211,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
             addPreferencesFromResource(R.xml.pref_ftp);
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_FTP));
             bindPreferenceSummaryToValue(findPreference(Util.PREF_FTP_ADDRESS));
             bindPreferenceSummaryToValue(findPreference(Util.PREF_FTP_USER));
             bindPreferenceSummaryToValue(findPreference(Util.PREF_FTP_PW));

@@ -7,11 +7,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-public class LogFileWriter extends ILogTarget {
+public class LogFile extends LogTarget {
 
     protected File folder;
 
-    LogFileWriter(SharedPreferences prefs) {
+    LogFile(SharedPreferences prefs) {
         super(prefs);
         folder = new File(Environment.getExternalStorageDirectory(),
                 prefs.getString(Util.PREF_APP_FOLDER, "SensorLogger"));

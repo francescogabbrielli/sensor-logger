@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <SwitchPreference
+    <ListPreference
         android:key="pref_ftp"
         android:title="@string/pref_ftp_title"
         android:summary="@string/pref_ftp_description"
+        android:entries="@array/pref_logtarget_list_titles"
+        android:entryValues="@array/pref_logtarget_list_values"
+        android:negativeButtonText="@null"
+        android:positiveButtonText="@null"
         />
 
     <EditTextPreference
@@ -12,11 +16,13 @@
         android:key="pref_ftp_address"
         android:title="@string/pref_ftp_address_title"
         />
+
     <EditTextPreference
         android:dependency="pref_ftp"
         android:key="pref_ftp_user"
         android:title="@string/pref_ftp_user_title"
         />
+
     <EditTextPreference
         android:dependency="pref_ftp"
         android:key="pref_ftp_pw"
