@@ -32,7 +32,11 @@ public abstract class LogTarget {
     /** Own hander */
     private Handler handler;
 
-    LogTarget(SharedPreferences prefs) { }
+    LogTarget(SharedPreferences prefs) {
+        thread = new HandlerThread(getTag()+" Thread");
+        thread.start();
+        handler = new Handler(thread.getLooper());
+    }
 
     /**
      * Post a generic task in the thread managed by this class.
@@ -62,14 +66,10 @@ public abstract class LogTarget {
     protected abstract OutputStream openOutputStream(String folder, String filename) throws IOException;
 
     /**
-     * Connect. It will also start its own operation thread. Override to connect/initialize logger
+     * Connect. Override to connect/initialize logger
      * @throws IOException
      */
-    public void connect() throws IOException {
-        thread = new HandlerThread("Service Thread");
-        thread.start();
-        handler = new Handler(thread.getLooper());
-    }
+    public abstract void connect() throws IOException;
 
 
     /**
@@ -81,9 +81,7 @@ public abstract class LogTarget {
      */
     public void open(String folder, String filename) throws IOException {
         out = openOutputStream(folder, filename);
-        if (out!=null)
-            Util.Log.d(getTag(), "File opened: "+filename);
-        else {
+        if (out==null) {
             Util.Log.w(getTag(), "Cannot create or access file "+filename);
             close();
         }
@@ -91,7 +89,8 @@ public abstract class LogTarget {
 
     /**
      * Log data to current file
-     * @param data
+     *
+     * @param data bytes to write
      * @throws IOException
      */
     public void write(byte[] data) throws IOException {
@@ -109,10 +108,12 @@ public abstract class LogTarget {
     }
 
     /**
-     * Disconnect. It will also stop its own thread. Override to finalize logger
+     * Disconnect. Override to finalize logger
      * @throws IOException
      */
-    public void disconnect() throws IOException {
+    public abstract void disconnect() throws IOException;
+
+    public void dispose() {
         thread.quitSafely();
         handler = null;
     }

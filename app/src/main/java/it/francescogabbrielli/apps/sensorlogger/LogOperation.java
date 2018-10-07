@@ -67,11 +67,13 @@ public class LogOperation {
      *
      * @param e the exception
      * @param formattedMsg the message format
-     * @param params the parameters of the format
+     * @param op
+     * @param filename
+     * @param target
      */
-    private void report(Exception e, String formattedMsg, Object... params) {
+    private void report(Exception e, String formattedMsg, String op, String filename, LogTarget target) {
         //TODO: report to foreground (callback?)
-        Log.e(LogOperation.class.getSimpleName(), String.format(Locale.US, formattedMsg, params), e);
+        Log.e(target.getTag(), String.format(Locale.US, formattedMsg, op, filename, target), e);
     }
 
 }

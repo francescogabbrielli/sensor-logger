@@ -14,6 +14,7 @@ public class LogFtp extends LogTarget {
 
     private FTPClient client;
     private String address, user, password;
+    private boolean folderCreated;
 
     /**
      * Creates a new FTP uploader, that is a wrapper around Apache Commons FTPClient
@@ -31,8 +32,10 @@ public class LogFtp extends LogTarget {
 
     @Override
     protected OutputStream openOutputStream(String folder, String filename) throws IOException {
-        client.makeDirectory(folder);
-        client.changeWorkingDirectory(folder);
+        if (!folderCreated) {
+            client.makeDirectory(folder);
+            folderCreated = client.changeWorkingDirectory(folder);
+        }
         return client.storeFileStream(filename);
     }
 
@@ -41,7 +44,6 @@ public class LogFtp extends LogTarget {
      */
     @Override
     public void connect() throws IOException {
-        super.connect();
         if (!client.isConnected()) {
             Util.Log.d(getTag(), "Connecting to " + address);
             client.connect(address);
@@ -52,14 +54,19 @@ public class LogFtp extends LogTarget {
     }
 
     @Override
+    public void close() throws IOException {
+        super.close();
+        if (client != null && client.isConnected())
+            client.completePendingCommand();
+    }
+
+    @Override
     public void disconnect() throws IOException {
-        super.disconnect();
         if (client != null && client.isConnected()) {
             Util.Log.d(getTag(), "Disconnecting from "+address);
-            client.completePendingCommand();
             client.logout();
             client.disconnect();
-            Util.Log.d(getTag(), "Client disconnected");
+            Util.Log.i(getTag(), "Client disconnected: "+address);
         }
     }
 }

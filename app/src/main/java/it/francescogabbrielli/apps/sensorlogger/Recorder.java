@@ -79,6 +79,8 @@ public class Recorder implements ServiceConnection {
     }
 
     private void logImage(byte[] data, int n) {
+        if (!bound)
+            return;
         service.log(
                 folder,
                 flagTimestamp
@@ -89,6 +91,8 @@ public class Recorder implements ServiceConnection {
     }
 
     private void logSensors(byte[] data) {
+        if (!bound)
+            return;
         service.log(
                 folder,
                 filenameData,
@@ -111,7 +115,7 @@ public class Recorder implements ServiceConnection {
         if (flagHeaders && counter == 0) {
             headers = new StringBuilder();
             if (flagTime)
-                headers.append("Frame Time");
+                headers.append("Frame Time,");
         }
         if (flagTime) {
             buffer.append(String.valueOf(timestamp));
@@ -193,6 +197,7 @@ public class Recorder implements ServiceConnection {
     @Override
     public void onServiceDisconnected(ComponentName name) {
         bound = false;
+        service = null;
         context = null;
     }
 

@@ -30,4 +30,9 @@ public class LogFile extends LogTarget {
         return new FileOutputStream(new File(subfolder, filename));
     }
 
+    @Override
+    public void connect() { }
+
+    @Override
+    public void disconnect() { }
 }

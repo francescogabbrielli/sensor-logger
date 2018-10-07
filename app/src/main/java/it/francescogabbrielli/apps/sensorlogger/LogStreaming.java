@@ -69,7 +69,6 @@ public class LogStreaming extends LogTarget {
 
     @Override
     public void connect() throws IOException {
-        super.connect();
         server = new ServerSocket(port);
         socket = server.accept();
         server.close();
@@ -101,7 +100,6 @@ public class LogStreaming extends LogTarget {
 
     @Override
     public void disconnect() throws IOException {
-        super.disconnect();
         Util.Log.i(getTag(), "Stop Streaming");
         try {
             super.close();

@@ -32,7 +32,7 @@ public class LoggingService extends Service {
     private IBinder binder = new Binder();
 
     /** Loggers */
-    private final List<LogTarget> openLoggers, atomicLoggers;
+    private final List<LogTarget> dataLoggers, imageLoggers;
 
     /** App preferences */
     private SharedPreferences prefs;
@@ -51,8 +51,8 @@ public class LoggingService extends Service {
     }
 
     public LoggingService() {
-        atomicLoggers = new LinkedList<>();
-        openLoggers = new LinkedList<>();
+        imageLoggers = new LinkedList<>();
+        dataLoggers = new LinkedList<>();
     }
 
     @Override
@@ -114,8 +114,14 @@ public class LoggingService extends Service {
     @Override
     public void onDestroy() {
         Util.Log.d(TAG, "onDestroy");
-        super.onDestroy();
+        for(LogTarget t : imageLoggers)
+            t.dispose();
+        imageLoggers.clear();
+        for(LogTarget t: dataLoggers)
+            t.dispose();
+        dataLoggers.clear();
         thread.quit();
+        super.onDestroy();
     }
 
     /**
@@ -157,12 +163,14 @@ public class LoggingService extends Service {
     }
 
     private void connect() {
-        atomicLoggers.clear();
-        atomicLoggers.addAll(newLoggers(Util.LOG_IMAGE));
+        imageLoggers.clear();
+        imageLoggers.addAll(newLoggers(Util.LOG_IMAGE));
+        dataLoggers.clear();
+        dataLoggers.addAll(newLoggers(Util.LOG_DATA));
     }
 
     private void disconnect() {
-        for (final LogTarget t : atomicLoggers)
+        for (final LogTarget t : imageLoggers)
             t.post(new Runnable() {
                 @Override
                 public void run() {
@@ -171,7 +179,7 @@ public class LoggingService extends Service {
                     } catch(Exception e) {}
                 }
             });
-        for (final LogTarget t : openLoggers)
+        for (final LogTarget t : dataLoggers)
             t.post(new Runnable() {
                 @Override
                 public void run() {
@@ -194,15 +202,11 @@ public class LoggingService extends Service {
     public synchronized void log(final String folder, final String filename, final int type, final byte[] data) {
         LogOperation operate = new LogOperation(type, data, folder, filename);
         if (type==LogTarget.SEND) {
-            for (LogTarget t : atomicLoggers)
+            for (LogTarget t : imageLoggers)
                 operate.on(t);
         } else {
-            if (type==LogTarget.OPEN && openLoggers.isEmpty())
-                openLoggers.addAll(newLoggers(Util.LOG_DATA));
-            for (LogTarget t : openLoggers)
+            for (LogTarget t : dataLoggers)
                 operate.on(t);
-            if (type==LogTarget.CLOSE)
-                openLoggers.clear();
         }
     }
 
@@ -238,10 +242,10 @@ public class LoggingService extends Service {
     }
 
     private synchronized boolean isRunning() {
-        for (LogTarget t : openLoggers)
+        for (LogTarget t : dataLoggers)
             if(t.isRunning())
                 return true;
-        for (LogTarget t : atomicLoggers)
+        for (LogTarget t : imageLoggers)
             if(t.isRunning())
                 return true;
         return false;
