@@ -33,6 +33,7 @@ public class Util {
     public final static String PREF_FTP_USER        = "pref_ftp_user";
     public final static String PREF_FTP_PW          = "pref_ftp_pw";
     public final static String PREF_STREAMING       = "pref_streaming";
+    public final static String PREF_STREAMING_PORT  = "pref_streaming_port";
     public final static String PREF_LOGGING_RATE    = "pref_logging_rate";
     public final static String PREF_LOGGING_HEADERS = "pref_logging_headers";
     public final static String PREF_LOGGING_TIME    = "pref_logging_time";

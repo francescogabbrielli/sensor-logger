@@ -9,15 +9,18 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
-import android.util.Log;
 
+import java.io.IOException;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * A {@link android.app.Service} subclass for handling asynchronous task requests in
  * a service on a separate handler threads.
+ *
+ * This is a bound service the binds to {@link MainActivity} through the {@link Recorder},
+ * during a recording session
  */
 public class LoggingService extends Service {
 
@@ -28,11 +31,17 @@ public class LoggingService extends Service {
 
     private IBinder binder = new Binder();
 
+    /** Loggers */
     private final List<LogTarget> openLoggers, atomicLoggers;
+
+    /** App preferences */
     private SharedPreferences prefs;
 
-    HandlerThread thread;
-    Handler handler;
+    /** Own thread (not really used, because all loggers have their own thread) */
+    private HandlerThread thread;
+
+    /** Own thread handler */
+    private Handler handler;
 
 
     public class Binder extends android.os.Binder {
@@ -72,22 +81,21 @@ public class LoggingService extends Service {
     @Override
     public IBinder onBind(Intent intent) {//Bound Service
         Util.Log.v(TAG, "in onBind");
-        atomicLoggers.clear();
-        atomicLoggers.addAll(newLoggers(Util.LOG_IMAGE));
+        connect();
         return binder;
     }
 
     @Override
     public void onRebind(Intent intent) {
         Util.Log.v(TAG, "in onRebind");
-        atomicLoggers.clear();
-        atomicLoggers.addAll(newLoggers(Util.LOG_IMAGE));
+        connect();
         super.onRebind(intent);
     }
 
     @Override
     public boolean onUnbind(Intent intent) {
         Util.Log.v(TAG, "in onUnbind");
+        disconnect();
         return true;
     }
 
@@ -105,20 +113,22 @@ public class LoggingService extends Service {
 
     @Override
     public void onDestroy() {
-        synchronized (this) {
-            for (LogTarget logTarget : atomicLoggers)
-                logTarget.dispose();
-            atomicLoggers.clear();
-            for (LogTarget logTarget : openLoggers)
-                logTarget.dispose();
-            openLoggers.clear();
-            thread.quit();
-        }
         Util.Log.d(TAG, "onDestroy");
         super.onDestroy();
+        thread.quit();
     }
 
+    /**
+     * Instantiate new loggers based on preferences
+     *
+     * @param mask bitmask (1=images, 2=sensors data)
+     * @return the list of available targets
+     * @see Util#LOG_IMAGE
+     * @see Util#LOG_DATA
+     */
     private List<LogTarget> newLoggers(int mask) {
+
+        // create targets based on preferences
         List<LogTarget> ret = new LinkedList<>();
         if ((Util.getIntPref(prefs, Util.PREF_FILE) & mask)==mask)
             ret.add(new LogFile(prefs));
@@ -126,26 +136,60 @@ public class LoggingService extends Service {
             ret.add(new LogFtp(prefs));
         if ((Util.getIntPref(prefs, Util.PREF_STREAMING) & mask)==mask)
             ret.add(new LogStreaming(prefs));
+
+        // connect targets as soon are they are created
+        for (final Iterator<LogTarget> it = ret.iterator(); it.hasNext() ; ) {
+            final LogTarget t = it.next();
+            t.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        t.connect();
+                    } catch (IOException e) {
+                        it.remove();
+                        Util.Log.e(t.getTag(), "Cannot connect", e);
+                    }
+                }
+            });
+        }
+
         return ret;
     }
 
-    /**
-     * Handle action START in the provided background thread with the provided
-     */
-    private void handleStart(final Bundle extras) {
-        int type = extras.getInt(Util.EXTRA_TYPE);
-        byte[] data = extras.getByteArray(Util.EXTRA_DATA);
-        String filename = extras.getString(Util.EXTRA_FILENAME);
-        String folder = extras.getString(Util.EXTRA_FOLDER);
-        log(folder, filename, type, data);
+    private void connect() {
+        atomicLoggers.clear();
+        atomicLoggers.addAll(newLoggers(Util.LOG_IMAGE));
+    }
+
+    private void disconnect() {
+        for (final LogTarget t : atomicLoggers)
+            t.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        t.disconnect();
+                    } catch(Exception e) {}
+                }
+            });
+        for (final LogTarget t : openLoggers)
+            t.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        t.disconnect();
+                    } catch(Exception e) {}
+                }
+            });
     }
 
     /**
-     * Log on available {@link LogTarget}s
-     * @param folder
-     * @param filename
-     * @param type
-     * @param data
+     * Send data on available {@link LogTarget}s
+     *
+     * @param folder the folder
+     * @param filename the filename to log to
+     * @param type the operation type
+     *     (one of {@link LogTarget#OPEN}, {@link LogTarget#WRITE}, {@link LogTarget#CLOSE}, {@link LogTarget#SEND})
+     * @param data the data to send
      */
     public synchronized void log(final String folder, final String filename, final int type, final byte[] data) {
         LogOperation operate = new LogOperation(type, data, folder, filename);
@@ -162,14 +206,16 @@ public class LoggingService extends Service {
         }
     }
 
-    private synchronized boolean isRunning() {
-        for (LogTarget t : openLoggers)
-            if(t.isRunning())
-                return true;
-        for (LogTarget t : atomicLoggers)
-            if(t.isRunning())
-                return true;
-        return false;
+
+    /**
+     * Handle action START in the provided background thread with the provided
+     */
+    private void handleStart(final Bundle extras) {
+        int type = extras.getInt(Util.EXTRA_TYPE);
+        byte[] data = extras.getByteArray(Util.EXTRA_DATA);
+        String filename = extras.getString(Util.EXTRA_FILENAME);
+        String folder = extras.getString(Util.EXTRA_FOLDER);
+        log(folder, filename, type, data);
     }
 
     /**
@@ -189,6 +235,16 @@ public class LoggingService extends Service {
                 stopSelf();
             }
         });
+    }
+
+    private synchronized boolean isRunning() {
+        for (LogTarget t : openLoggers)
+            if(t.isRunning())
+                return true;
+        for (LogTarget t : atomicLoggers)
+            if(t.isRunning())
+                return true;
+        return false;
     }
 
 }

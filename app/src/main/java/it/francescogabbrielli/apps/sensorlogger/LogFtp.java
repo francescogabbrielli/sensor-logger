@@ -5,7 +5,11 @@ import android.content.SharedPreferences;
 import org.apache.commons.net.ftp.FTPClient;
 
 import java.io.IOException;
+import java.io.OutputStream;
 
+/**
+ * Transfer data (images / sensor readings) to an FTP server
+ */
 public class LogFtp extends LogTarget {
 
     private FTPClient client;
@@ -25,49 +29,37 @@ public class LogFtp extends LogTarget {
         password = prefs.getString(Util.PREF_FTP_PW, "");
     }
 
+    @Override
+    protected OutputStream openOutputStream(String folder, String filename) throws IOException {
+        client.makeDirectory(folder);
+        client.changeWorkingDirectory(folder);
+        return client.storeFileStream(filename);
+    }
+
     /**
      * Connects to the FTP server
      */
     @Override
-    public void open(String folder, String filename) throws IOException {
-        if (!client.isConnected())
-            try {
-                Util.Log.d(getTag(), "Connecting to "+address);
-                client.connect(address);
-                client.login(user, password);
-                client.enterLocalPassiveMode();
-                client.setFileType(org.apache.commons.net.ftp.FTP.BINARY_FILE_TYPE);
-                client.makeDirectory(folder);
-                client.changeWorkingDirectory(folder);
-                out = client.storeFileStream(filename);
-                if (out!=null)
-                    Util.Log.d(getTag(), "File opened: "+filename);
-                else {
-                    Util.Log.w(getTag(), "Cannot create or access file "+filename);
-                    close();
-                }
-            } catch (Exception e) {
-                Util.Log.e(getTag(), "Can't connect to " + address + ", user: " + user, e);
-            }
-    }
-
-    /**
-     * Closes current connection
-     */
-    @Override
-    public void close() throws IOException {
-        super.close();
-        Util.Log.d(getTag(), "Disconnecting from "+address);
-        if (client != null && client.isConnected()) {
-            try {
-                client.completePendingCommand();
-                client.logout();
-                client.disconnect();
-                Util.Log.d(getTag(), "Client disconnected");
-            } catch (Exception e) {
-                Util.Log.e(getTag(), "Error finalizing FTP connection", e);
-            }
+    public void connect() throws IOException {
+        super.connect();
+        if (!client.isConnected()) {
+            Util.Log.d(getTag(), "Connecting to " + address);
+            client.connect(address);
+            client.login(user, password);
+            client.enterLocalPassiveMode();
+            client.setFileType(org.apache.commons.net.ftp.FTP.BINARY_FILE_TYPE);
         }
     }
 
+    @Override
+    public void disconnect() throws IOException {
+        super.disconnect();
+        if (client != null && client.isConnected()) {
+            Util.Log.d(getTag(), "Disconnecting from "+address);
+            client.completePendingCommand();
+            client.logout();
+            client.disconnect();
+            Util.Log.d(getTag(), "Client disconnected");
+        }
+    }
 }

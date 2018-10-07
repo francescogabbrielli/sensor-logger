@@ -25,4 +25,9 @@
         android:icon="@drawable/ic_ftp_24dp"
         android:title="@string/pref_ftp_header" />
 
+    <header
+        android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$StreamingPreferenceFragment"
+        android:icon="@drawable/ic_streaming_24dp"
+        android:title="@string/pref_streaming_header" />
+
 </preference-headers>

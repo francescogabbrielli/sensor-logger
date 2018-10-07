@@ -6,9 +6,14 @@ import android.os.Environment;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
+/**
+ * Save data (images / sensor data) to local file-system, in the app folder
+ */
 public class LogFile extends LogTarget {
 
+    /** The app folder, not the recording folder */
     protected File folder;
 
     LogFile(SharedPreferences prefs) {
@@ -19,10 +24,10 @@ public class LogFile extends LogTarget {
     }
 
     @Override
-    public void open(String folder, String filename) throws IOException {
+    protected OutputStream openOutputStream(String folder, String filename) throws IOException {
         File subfolder = new File(this.folder, folder);
         subfolder.mkdir();
-        out = new FileOutputStream(new File(subfolder, filename));
+        return new FileOutputStream(new File(subfolder, filename));
     }
 
 }

@@ -33,6 +33,12 @@
     <string name="pref_ftp_user_title">Username</string>
     <string name="pref_ftp_pw_title">Password</string>
 
+    <!-- Settings -> Streaming -->
+    <string name="pref_streaming_header">Streaming</string>
+    <string name="pref_streaming_title">Enable Image Streaming</string>
+    <string name="pref_streaming_description">[EXPERIMENTAL] The images will be streamed over HTTP: %s</string>
+    <string name="pref_streaming_port_title">Start server on port</string>
+
     <!-- Settings -> Logging -->
     <string name="pref_logging_header">Logging</string>
 
@@ -61,7 +67,7 @@
     </string-array>
 
     <string name="pref_logging_headers_title">Log headers</string>
-    <string name="pref_logging_headers_description">[EXPERIMENTAL] Print the headers row in the output file</string>
+    <string name="pref_logging_headers_description">Print the headers row in the output file</string>
 
     <string name="pref_logging_time_title">Log time</string>
     <string name="pref_logging_time_description">Print time in the first column of the output file</string>

@@ -185,7 +185,8 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
                 || LoggingPreferenceFragment.class.getName().equals(fragmentName)
                 || SensorsPreferenceFragment.class.getName().equals(fragmentName)
                 || CapturePreferenceFragment.class.getName().equals(fragmentName)
-                || FTPPreferenceFragment.class.getName().equals(fragmentName);
+                || FTPPreferenceFragment.class.getName().equals(fragmentName)
+                || StreamingPreferenceFragment.class.getName().equals(fragmentName);
     }
 
     public static class LoggingPreferenceFragment extends AppCompatPreferenceFragment {
@@ -215,6 +216,16 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
             bindPreferenceSummaryToValue(findPreference(Util.PREF_FTP_ADDRESS));
             bindPreferenceSummaryToValue(findPreference(Util.PREF_FTP_USER));
             bindPreferenceSummaryToValue(findPreference(Util.PREF_FTP_PW));
+        }
+    }
+
+    public static class StreamingPreferenceFragment extends AppCompatPreferenceFragment {
+        @Override
+        public void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            addPreferencesFromResource(R.xml.pref_streaming);
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_STREAMING));
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_STREAMING_PORT));
         }
     }
 
