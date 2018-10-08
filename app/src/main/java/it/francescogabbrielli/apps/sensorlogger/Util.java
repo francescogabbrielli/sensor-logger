@@ -94,9 +94,10 @@ public class Util {
                         if (!prefs.contains(key)) {
                             String val = defaults.getProperty(key);
                             //TODO: manage different types?
-                            if ("TRUE".equalsIgnoreCase(val) || "FALSE".equalsIgnoreCase(val))
+                            if ("TRUE".equalsIgnoreCase(val) || "FALSE".equalsIgnoreCase(val)) {
                                 editor.putBoolean(key, Boolean.parseBoolean(val.toLowerCase()));
-                            else
+                                Log.d("Defaults", key+"="+val);
+                            } else
                                 editor.putString(key, val);
                         }
                     }
@@ -162,7 +163,11 @@ public class Util {
     }
 
     public static int getIntPref(SharedPreferences prefs, String prefKey) {
-        return Integer.valueOf(prefs.getString(prefKey, "0"));
+        Object val = prefs.getAll().get(prefKey);
+        if (val instanceof Boolean)
+            return prefs.getBoolean(prefKey, false) ? 1 : 0;
+        else
+            return val!=null ? Integer.valueOf(val.toString()) : 0;
     }
 
     public static long getLongPref(SharedPreferences prefs, String prefKey) {

@@ -347,7 +347,7 @@ public class MainActivity extends AppCompatActivity implements
         if (Manifest.permission.CAMERA.equals(permission)) {
             prefs.edit()
                     .putBoolean(Util.PREF_CAPTURE_CAMERA, false)
-                    .putString(Util.PREF_STREAMING, "0").apply();
+                    .putBoolean(Util.PREF_STREAMING, false).apply();
         } else if (Manifest.permission.INTERNET.equals(permission)) {
             prefs.edit().putString(Util.PREF_FTP, "0").apply();
         } else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission)) {

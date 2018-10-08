@@ -1,19 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <ListPreference
+    <SwitchPreference
         android:key="pref_streaming"
-        android:title="@string/pref_ftp_title"
-        android:summary="@string/pref_ftp_description"
-        android:entries="@array/pref_logtarget_list_titles"
-        android:entryValues="@array/pref_logtarget_list_values"
-        android:negativeButtonText="@null"
-        android:positiveButtonText="@null"
+        android:title="@string/pref_streaming_title"
+        android:summary="@string/pref_streaming_description"
         />
 
     <EditTextPreference
         android:key="pref_streaming_port"
+        android:dependency="pref_streaming"
         android:title="@string/pref_streaming_port_title"
+        android:summary="@string/pref_streaming_port_description"
         android:inputType="number"
         />
 

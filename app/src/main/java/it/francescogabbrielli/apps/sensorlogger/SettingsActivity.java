@@ -71,25 +71,23 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
             Log.d(TAG, "Preference "+preference.getKey()+" -> "+value+" ["+value.getClass()+"]");
             String stringValue = value.toString();
             Context ctx = preference.getContext();
+            int descriptionId = ctx.getResources().getIdentifier(
+                    preference.getKey() + "_description", "string", ctx.getPackageName());
             if (preference instanceof ListPreference) {
                 // For list preferences, look up the correct display value in
                 // the preference's 'entries' list.
                 ListPreference listPreference = (ListPreference) preference;
                 int index = listPreference.findIndexOfValue(stringValue);
-
                 if (index < 0) {
                     preference.setSummary(null);
                 } else {
                     listPreference.setValueIndex(index);
                     CharSequence val = listPreference.getEntries()[index];
-                    int descriptionId = ctx.getResources().getIdentifier(
-                            preference.getKey() + "_description", "string", ctx.getPackageName());
-                    // Set the summary to reflect the new value.
                     preference.setSummary(descriptionId != 0
                             ? ctx.getString(descriptionId, val)
-                            : val);
+                            : val
+                    );
                 }
-
             } else if(preference instanceof EditTextPreference &&
                     (((EditTextPreference) preference).getEditText().getInputType() & InputType.TYPE_TEXT_VARIATION_PASSWORD)!=0) {
 
@@ -97,8 +95,8 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
 
             } else {
                 // For all other preferences, set the summary to the value's
-                // simple string representation.
-                preference.setSummary(stringValue);
+                // simple string representation (plus optional description).
+                preference.setSummary(descriptionId!=0 ? ctx.getString(descriptionId, stringValue) : stringValue);
             }
             return true;
         }
@@ -224,7 +222,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
             addPreferencesFromResource(R.xml.pref_streaming);
-            bindPreferenceSummaryToValue(findPreference(Util.PREF_STREAMING));
+//            bindPreferenceSummaryToValue(findPreference(Util.PREF_STREAMING));
             bindPreferenceSummaryToValue(findPreference(Util.PREF_STREAMING_PORT));
         }
     }

@@ -30,15 +30,6 @@ public class LogFtp extends LogTarget {
         password = prefs.getString(Util.PREF_FTP_PW, "");
     }
 
-    @Override
-    protected OutputStream openOutputStream(String folder, String filename) throws IOException {
-        if (!folderCreated) {
-            client.makeDirectory(folder);
-            folderCreated = client.changeWorkingDirectory(folder);
-        }
-        return client.storeFileStream(filename);
-    }
-
     /**
      * Connects to the FTP server
      */
@@ -51,6 +42,15 @@ public class LogFtp extends LogTarget {
             client.enterLocalPassiveMode();
             client.setFileType(org.apache.commons.net.ftp.FTP.BINARY_FILE_TYPE);
         }
+    }
+
+    @Override
+    protected OutputStream openOutputStream(String folder, String filename) throws IOException {
+        if (!folderCreated) {
+            client.makeDirectory(folder);
+            folderCreated = client.changeWorkingDirectory(folder);
+        }
+        return client.storeFileStream(filename);
     }
 
     @Override
