@@ -27,6 +27,9 @@ public class Util {
     public final static String PREF_FILENAME_DATA   = "pref_filename_data";
     public final static String PREF_FILENAME_FRAME  = "pref_filename_frame";
 
+    public final static String PREF_SENSORS_THETA   = "pref_sensors_theta";
+    public final static String PREF_SENSORS_PHI     = "pref_sensors_phi";
+
     public final static String PREF_FILE            = "pref_file";
     public final static String PREF_FTP             = "pref_ftp";
     public final static String PREF_FTP_ADDRESS     = "pref_ftp_address";
@@ -39,6 +42,7 @@ public class Util {
     public final static String PREF_LOGGING_TIME    = "pref_logging_time";
     public final static String PREF_LOGGING_TIMESTAMP = "pref_logging_timestamp";
     public final static String PREF_LOGGING_TIMESTAMP_FORMAT = "pref_logging_timestamp_format";
+    public final static String PREF_LOGGING_CHUNK   = "pref_logging_chunk";
 
     public final static String PREF_CAPTURE_CAMERA  = "pref_capture_camera";
     public final static String PREF_CAPTURE_IMGFORMAT = "pref_capture_imgformat";
@@ -48,6 +52,7 @@ public class Util {
     public final static String EXTRA_DATA           = "extra_data";
     public final static String EXTRA_FILENAME       = "extra_filename";
     public final static String EXTRA_FOLDER         = "extra_folder";
+    public final static String EXTRA_TIMESTAMP      = "extra_timestamp";
 
     public final static String[] DATA_HEADERS = new String[] {
             "X", "Y", "Z", "Param1", "Param2", "Param3"
@@ -176,5 +181,9 @@ public class Util {
             ret = Long.parseLong(prefs.getString(prefKey, "0"));
         } catch(Exception e) {}
         return ret;
+    }
+
+    public static double getDoublePref(SharedPreferences prefs, String key) {
+        return Double.valueOf(prefs.getString(key, "0"));
     }
 }

@@ -12,6 +12,7 @@ public class LogOperation {
     private int type;
     private String folder, filename;
     private byte[] data;
+    private long timestamp;
 
     /**
      * Create a new {@link LogOperation}
@@ -21,11 +22,12 @@ public class LogOperation {
      * @param folder the folder
      * @param filename the filename to log to
      */
-    LogOperation(int type, byte[]data, String folder, String filename) {
+    LogOperation(int type, byte[]data, String folder, String filename, long timestamp) {
         this.type = type;
         this.data = data;
         this.folder = folder;
         this.filename = filename;
+        this.timestamp = timestamp;
     }
 
     /**
@@ -42,7 +44,7 @@ public class LogOperation {
                 try {
                     switch (type) {
                         case LogTarget.OPEN:
-                            target.open(folder, filename);
+                            target.open(folder, filename, timestamp);
                         case LogTarget.WRITE:
                             target.write(data);
                             break;
@@ -50,7 +52,7 @@ public class LogOperation {
                             target.close();
                             break;
                         case LogTarget.SEND:
-                            target.open(folder, filename);
+                            target.open(folder, filename, timestamp);
                             target.write(data);
                             target.close();
                     }

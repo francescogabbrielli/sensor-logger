@@ -56,7 +56,7 @@ public class LogFtp extends LogTarget {
     @Override
     public void close() throws IOException {
         super.close();
-        if (client != null && client.isConnected())
+        if (client!=null && client.isConnected())
             client.completePendingCommand();
     }
 

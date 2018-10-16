@@ -77,9 +77,10 @@ public abstract class LogTarget {
      *
      * @param folder the recording folder
      * @param filename the filename to log to
+     * @param timestamp
      * @throws IOException
      */
-    public void open(String folder, String filename) throws IOException {
+    public void open(String folder, String filename, long timestamp) throws IOException {
         out = openOutputStream(folder, filename);
         if (out==null) {
             Util.Log.w(getTag(), "Cannot create or access file "+filename);

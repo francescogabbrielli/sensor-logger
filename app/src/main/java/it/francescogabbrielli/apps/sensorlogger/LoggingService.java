@@ -199,8 +199,8 @@ public class LoggingService extends Service {
      *     (one of {@link LogTarget#OPEN}, {@link LogTarget#WRITE}, {@link LogTarget#CLOSE}, {@link LogTarget#SEND})
      * @param data the data to send
      */
-    public synchronized void log(final String folder, final String filename, final int type, final byte[] data) {
-        LogOperation operate = new LogOperation(type, data, folder, filename);
+    public synchronized void log(final String folder, final String filename, final int type, final byte[] data, long timestamp) {
+        LogOperation operate = new LogOperation(type, data, folder, filename, timestamp);
         if (type==LogTarget.SEND) {
             for (LogTarget t : imageLoggers)
                 operate.on(t);
@@ -219,7 +219,7 @@ public class LoggingService extends Service {
         byte[] data = extras.getByteArray(Util.EXTRA_DATA);
         String filename = extras.getString(Util.EXTRA_FILENAME);
         String folder = extras.getString(Util.EXTRA_FOLDER);
-        log(folder, filename, type, data);
+        log(folder, filename, type, data, extras.getInt(Util.EXTRA_TIMESTAMP));
     }
 
     /**

@@ -104,12 +104,12 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
     }
 
     /**
-     * Read the latest available data for a sensor
+     * Read the latest available data for a sensor.
      *
      * @param sensor the sensor
      * @return the last {@link SensorEvent} for that sensor
      */
-    public  SensorEvent readSensor(Sensor sensor) {
+    public SensorEvent readSensor(Sensor sensor) {
         return readings.get(sensor.getType());
     }
 

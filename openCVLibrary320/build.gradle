@@ -1,18 +1,11 @@
 apply plugin: 'com.android.library'
 android {
     compileSdkVersion 28
-    buildToolsVersion "28.0.2"
+    buildToolsVersion "28.0.3"
 
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 28
-//        externalNativeBuild {
-//            cmake {}
-//        }
-//        ndk {
-//            moduleName "opencv"
-//            abiFilters 'armeabi-v7a'
-//        }
     }
 
     buildTypes {
@@ -24,16 +17,12 @@ android {
             debuggable false
         }
     }
-//    externalNativeBuild {
-//        cmake {
-//            path "CMakeLists.txt"
+
+//    sourceSets {
+//        main {
+//            jniLibs.srcDirs "sdk/native/libs"
 //        }
 //    }
-    sourceSets {
-        main {
-            jniLibs.srcDirs "sdk/native/libs"
-        }
-    }
 }
 
 dependencies {

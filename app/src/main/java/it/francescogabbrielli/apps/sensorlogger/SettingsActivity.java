@@ -222,7 +222,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
             addPreferencesFromResource(R.xml.pref_streaming);
-//            bindPreferenceSummaryToValue(findPreference(Util.PREF_STREAMING));
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_STREAMING));
             bindPreferenceSummaryToValue(findPreference(Util.PREF_STREAMING_PORT));
         }
     }

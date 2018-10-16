@@ -28,11 +28,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.opencv.android.CameraBridgeViewBase;
+import org.opencv.android.InstallCallbackInterface;
 import org.opencv.android.JavaCameraView;
+import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
 import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.imgproc.Imgproc;
 
 import java.io.File;
 import java.util.LinkedList;
@@ -46,17 +49,13 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity implements
-        CameraBridgeViewBase.CvCameraViewListener {
+        CameraBridgeViewBase.CvCameraViewListener,
+        LoaderCallbackInterface {
 
     private final static String TAG = MainActivity.class.getSimpleName();
     private final static double ONE_BILLION = 1000000000d;
 
     private final static int REQUEST_PERMISSIONS = 3;
-
-    static {
-        if (!OpenCVLoader.initDebug())
-            Util.Log.w(TAG, "Cannot initialize OpenCV!");
-    }
 
     private JavaCameraView camera;//OpenCV Camera View
 
@@ -65,6 +64,27 @@ public class MainActivity extends AppCompatActivity implements
     private Recorder recorder;
     private long timestamp, frameDuration;
     private String imgFormat;
+
+    @Override
+    public void onManagerConnected(int status) {
+        Util.Log.v(TAG, "OpenCV status:" +status);
+        switch (status) {
+            case LoaderCallbackInterface.SUCCESS:
+                verifyPermissions();
+                break;
+        }
+    }
+
+    @Override
+    public void onPackageInstall(int operation, InstallCallbackInterface callback) {
+        Util.Log.v(TAG, "OpenCV install:" +operation);
+        switch (operation) {
+            case InstallCallbackInterface.NEW_INSTALLATION:
+                callback.install();
+                break;
+        }
+        //callback.install();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,9 +121,17 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     protected void onResume() {
         super.onResume();
+
+        if (!OpenCVLoader.initDebug()) {
+            Util.Log.d("OpenCV", "Internal OpenCV library not found. Using OpenCV Manager for initialization");
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, this);
+        } else {
+            Util.Log.d("OpenCV", "OpenCV library found inside package. Using it!");
+            onManagerConnected(LoaderCallbackInterface.SUCCESS);
+        }
+
         Util.Log.d(TAG, "onResume");
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-        verifyPermissions();
     }
 
     @Override
@@ -141,6 +169,9 @@ public class MainActivity extends AppCompatActivity implements
         return super.onOptionsItemSelected(item);
     }
 
+    //<editor-fold desc="Start/Stop management">
+    // --------------------------------- START / STOP MANAGEMENT  ----------------------------------
+    //
     private boolean recPressed, recording;
     private long lastPressed;
 
@@ -258,10 +289,13 @@ public class MainActivity extends AppCompatActivity implements
         hidePrepareAnimation();
         hideBlinkingAnimation();
     }
+    //
+    // ----------------------------------- ---------------------- ----------------------------------
+    //</editor-fold>
 
     //<editor-fold desc="Permissions">
     // ----------------------------------- PERMISSIONS MANAGEMENT ----------------------------------
-    //
+    //-
     /**
      * Checks if the app has the required permissions, as per current setttings.
      * <p>
@@ -347,7 +381,7 @@ public class MainActivity extends AppCompatActivity implements
         if (Manifest.permission.CAMERA.equals(permission)) {
             prefs.edit()
                     .putBoolean(Util.PREF_CAPTURE_CAMERA, false)
-                    .putBoolean(Util.PREF_STREAMING, false).apply();
+                    .putString(Util.PREF_STREAMING, "0").apply();
         } else if (Manifest.permission.INTERNET.equals(permission)) {
             prefs.edit().putString(Util.PREF_FTP, "0").apply();
         } else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission)) {
@@ -409,7 +443,9 @@ public class MainActivity extends AppCompatActivity implements
                 @Override
                 public void run() {
                     MatOfByte buf = new MatOfByte();//buffer: is the way OpenCV encodes bitmaps
-                    Imgcodecs.imencode(imgFormat, inputFrame, buf);//encode the frame into the buffer buf in the format specified by imgFormat
+                    Mat converted = new Mat(inputFrame.size(), inputFrame.type());
+                    Imgproc.cvtColor(inputFrame, converted, Imgproc.COLOR_RGB2BGRA);//convert colors
+                    Imgcodecs.imencode(imgFormat, converted, buf);//encode the frame into the buffer buf in the format specified by imgFormat
                     recorder.record(buf.toArray(), t);//record the frame
                 }
             });
@@ -428,4 +464,5 @@ public class MainActivity extends AppCompatActivity implements
     //
     // ----------------------------------- ---------------------- ----------------------------------
     //</editor-fold>
+
 }
