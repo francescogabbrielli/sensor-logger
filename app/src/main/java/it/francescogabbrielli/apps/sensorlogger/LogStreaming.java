@@ -44,7 +44,6 @@ public class LogStreaming extends LogTarget {
     @Override
     public void connect() throws IOException {
         server.start(port);
-        Util.Log.i(getTag(), "Start Streaming");
     }
 
     @Override
@@ -65,7 +64,6 @@ public class LogStreaming extends LogTarget {
 
     @Override
     public void disconnect() throws IOException {
-        Util.Log.i(getTag(), "Stop Streaming");
         server.stop();
     }
 

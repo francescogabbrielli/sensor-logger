@@ -90,22 +90,26 @@ public class StreamingServer implements Runnable {
      * Start the server
      *
      * @param port
+     * @return true if it actually starts
      * @throws Exception
      */
-    public void start(int port) {
+    public synchronized boolean start(int port) {
         if (running)
-            return;
+            return false;
+
+        Util.Log.i(TAG, "Start Streaming");
 
         this.port = port;
         boundaryFormat = "Content-type: %s\r\n"
                 + "Content-Length: %d\r\n"
-                + "X-Timestamp:%d\r\n"
+                + "X-Timestamp: %d\r\n"
                 + "\r\n";
 
         running = true;
         thread = new Thread(this);
         thread.setDaemon(true);
         thread.start();
+        return true;
     }
 
     /**
@@ -126,6 +130,7 @@ public class StreamingServer implements Runnable {
      */
     public void stop() {
         if (running) {
+            Util.Log.i(TAG, "Stop Streaming");
             running = false;
             thread.interrupt();
         }
@@ -153,7 +158,7 @@ public class StreamingServer implements Runnable {
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
 
-            serverSocket.setSoTimeout(1000 );
+            serverSocket.setSoTimeout(1000);
 
             // accept connection
             do try {
@@ -193,13 +198,20 @@ public class StreamingServer implements Runnable {
                 stream.writeBytes(BOUNDARY_LINE);
                 stream.writeBytes(String.format(Locale.US, boundaryFormat, buffer.contentType, buffer.length, buffer.timestamp));
                 stream.write(buffer.data, 0, buffer.length);
-                stream.writeBytes("\r\n\r\n");
+                stream.writeBytes("\r\n");
                 stream.flush();
             }
 
         } finally {
-            try { if (stream!=null) stream.close(); }
-            catch (final Exception e) { Util.Log.e(TAG, "Error closing streaming", e); }
+            try {
+                if (stream!=null) {
+                    stream.writeBytes(BOUNDARY_LINE+"--");
+                    stream.flush();
+                    stream.close();
+                }
+            } catch (final Exception e) {
+                Util.Log.e(TAG, "Error closing streaming", e);
+            }
             try { if (socket!=null) socket.close(); }
             catch (final Exception e) { Util.Log.e(TAG, "Error closing streaming client", e); }
         }
