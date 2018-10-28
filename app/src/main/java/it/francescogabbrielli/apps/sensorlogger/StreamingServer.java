@@ -1,5 +1,7 @@
 package it.francescogabbrielli.apps.sensorlogger;
 
+import android.os.SystemClock;
+
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -62,6 +64,7 @@ public class StreamingServer implements Runnable {
     private final static int BUFFER_SIZE = 2000000;
     private int currentBuffer;
     private boolean newData;
+    private long delayLimit;
 
     class Buffer {
         byte[] data;
@@ -164,6 +167,7 @@ public class StreamingServer implements Runnable {
             do try {
                     socket = serverSocket.accept();
                     Util.Log.d(TAG, "Connected to "+socket);
+                    delayLimit = 100;
                 } catch (final SocketTimeoutException e) {
                     if (!running)
                         return;
@@ -193,6 +197,11 @@ public class StreamingServer implements Runnable {
                     buffer = buffers[currentBuffer++];
                     currentBuffer %= N_BUFFERS;
                     newData = false;
+                }
+
+                if (SystemClock.elapsedRealtime() - buffer.timestamp > delayLimit) {
+                    Util.Log.i(TAG, "Streaming is delayed: "+delayLimit);
+                    delayLimit *= 2;
                 }
 
                 stream.writeBytes(BOUNDARY_LINE);

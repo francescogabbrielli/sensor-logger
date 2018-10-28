@@ -35,6 +35,7 @@ public class Util {
     public final static String PREF_FTP_ADDRESS     = "pref_ftp_address";
     public final static String PREF_FTP_USER        = "pref_ftp_user";
     public final static String PREF_FTP_PW          = "pref_ftp_pw";
+    public final static String PREF_FTP_SKIP        = "pref_ftp_skip";
     public final static String PREF_STREAMING       = "pref_streaming";
     public final static String PREF_STREAMING_PORT  = "pref_streaming_port";
     public final static String PREF_LOGGING_RATE    = "pref_logging_rate";
@@ -69,11 +70,11 @@ public class Util {
             android.util.Log.i(tag, msg);
         }
         public static void d(String tag, String msg) {
-            if (BuildConfig.DEBUG)
+            if (!BuildConfig.DEBUG)
                 android.util.Log.d(tag, msg);
         }
         public static void v(String tag, String msg) {
-            if (BuildConfig.DEBUG)
+            if (!BuildConfig.DEBUG)
                 android.util.Log.v(tag, msg);
         }
     }

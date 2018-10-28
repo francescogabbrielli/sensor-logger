@@ -31,4 +31,10 @@
         android:title="@string/pref_ftp_pw_title"
         />
 
+    <EditTextPreference
+        android:key="pref_ftp_skip"
+        android:title="@string/pref_ftp_skip_title"
+        android:inputType="number"
+        />
+
 </PreferenceScreen>

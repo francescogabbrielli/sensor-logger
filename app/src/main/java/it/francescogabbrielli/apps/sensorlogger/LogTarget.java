@@ -124,4 +124,8 @@ public abstract class LogTarget {
         return getClass().getSimpleName();
     }
 
+
+    public boolean skip() {
+        return false;
+    }
 }

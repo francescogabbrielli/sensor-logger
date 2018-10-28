@@ -30,7 +30,7 @@ public class Recorder implements ServiceConnection {
 
     private final static int MAX_RECORDING_TIME = 3600000;//1h in ms
 
-    private final static DateFormat dateFormat = new SimpleDateFormat("yyyy_MM_d__HH_mm_ss", Locale.US);
+    private final static DateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd__HH_mm_ss", Locale.US);
 
     private MainActivity context;
     private LoggingService service;

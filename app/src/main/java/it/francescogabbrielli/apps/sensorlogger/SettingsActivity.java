@@ -214,6 +214,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
             bindPreferenceSummaryToValue(findPreference(Util.PREF_FTP_ADDRESS));
             bindPreferenceSummaryToValue(findPreference(Util.PREF_FTP_USER));
             bindPreferenceSummaryToValue(findPreference(Util.PREF_FTP_PW));
+            bindPreferenceSummaryToValue(findPreference(Util.PREF_FTP_SKIP));
         }
     }
 

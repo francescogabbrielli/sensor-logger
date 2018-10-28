@@ -5,7 +5,7 @@ import android.util.Log;
 import java.util.Locale;
 
 /**
- * An utility class to post speicific operation to a {@link LogTarget}
+ * An utility class to post a specific operation to a {@link LogTarget}
  */
 public class LogOperation {
 
@@ -37,7 +37,7 @@ public class LogOperation {
      * @param target the destination
      */
     public void on(final LogTarget target) {
-        Util.Log.v(target.getTag(), LogTarget.OP_NAMES[type] + " " + filename + "; bytes: " + (data != null ? data.length : -1));
+        //Util.Log.v(target.getTag(), LogTarget.OP_NAMES[type] + " " + filename + "; bytes: " + (data != null ? data.length : -1));
         target.post(new Runnable() {
             @Override
             public void run() {
@@ -52,6 +52,8 @@ public class LogOperation {
                             target.close();
                             break;
                         case LogTarget.SEND:
+                            if (target.skip())
+                                return;
                             target.open(folder, filename, timestamp);
                             target.write(data);
                             target.close();

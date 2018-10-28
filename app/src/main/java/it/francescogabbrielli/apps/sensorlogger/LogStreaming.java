@@ -4,6 +4,7 @@ import android.content.SharedPreferences;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,7 +33,7 @@ public class LogStreaming extends LogTarget {
         server = StreamingServer.getInstance();
         port = Util.getIntPref(prefs, Util.PREF_STREAMING_PORT);
         imageType = CONTENT_TYPES.get(prefs.getString(Util.PREF_CAPTURE_IMGFORMAT, ""));
-        if (imageType ==null)
+        if (imageType == null)
             imageType = "image/*";
     }
 
@@ -54,7 +55,32 @@ public class LogStreaming extends LogTarget {
 
     @Override
     public void write(byte[] data) throws IOException {
-        server.stream(data, timestamp, data.length>1000 ? imageType : "text/csv");
+        String type = imageType;
+        long offset = 0;
+        if (data.length<2000) {
+            type = "text/csv";
+            offset = getTimeOffset(data);
+        }
+        server.stream(data, timestamp+offset, type);
+    }
+
+    /**
+     * Retrieve the time offset from sensor data
+     *
+     * @param data sensor data line
+     * @return the time offset
+     */
+    private long getTimeOffset(byte[] data) {
+        StringBuilder buffer = new StringBuilder();
+        for (byte b : data) {
+            char c = (char) (b & 0xFF);
+            switch (c) {
+                case '.': break;
+                case ',': return Long.parseLong(buffer.toString());
+                default: buffer.append(c);
+            }
+        }
+        return 0;
     }
 
     @Override
