@@ -43,6 +43,9 @@ public class LoggingService extends Service {
     /** Own thread handler */
     private Handler handler;
 
+    /** A simple streaming server */
+    private StreamingServer streamingServer;
+
 
     public class Binder extends android.os.Binder {
         LoggingService getService() {
@@ -121,6 +124,8 @@ public class LoggingService extends Service {
             t.dispose();
         dataLoggers.clear();
         thread.quit();
+        if (streamingServer!=null)
+            streamingServer.dispose();
         super.onDestroy();
     }
 
@@ -137,11 +142,11 @@ public class LoggingService extends Service {
         // create targets based on preferences
         List<LogTarget> ret = new LinkedList<>();
         if ((Util.getIntPref(prefs, Util.PREF_FILE) & mask)==mask)
-            ret.add(new LogFile(prefs));
+            ret.add(new LogFile(this, prefs));
         if ((Util.getIntPref(prefs, Util.PREF_FTP) & mask)==mask)
-            ret.add(new LogFtp(prefs));
+            ret.add(new LogFtp(this, prefs));
         if ((Util.getIntPref(prefs, Util.PREF_STREAMING) & mask)==mask)
-            ret.add(new LogStreaming(prefs));
+            ret.add(new LogStreaming(this, prefs));
 
         // connect targets as soon are they are created
         for (final Iterator<LogTarget> it = ret.iterator(); it.hasNext() ; ) {
@@ -160,6 +165,12 @@ public class LoggingService extends Service {
         }
 
         return ret;
+    }
+
+    StreamingServer getStreamingServer() {
+        if (streamingServer==null)
+            streamingServer = new StreamingServer();
+        return streamingServer;
     }
 
     private void connect() {

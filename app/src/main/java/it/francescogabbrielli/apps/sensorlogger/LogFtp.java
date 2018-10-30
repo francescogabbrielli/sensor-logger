@@ -6,7 +6,6 @@ import org.apache.commons.net.ftp.FTPClient;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Locale;
 
 /**
  * Transfer data (images / sensor readings) to an FTP server
@@ -25,8 +24,8 @@ public class LogFtp extends LogTarget {
      * @param prefs the application preferences
      * @see Util#PREF_FTP_ADDRESS, Util#PREF_FTP_USER, Util#PREF_FTP_PW
      */
-    public LogFtp(SharedPreferences prefs) {
-        super(prefs);
+    public LogFtp(LoggingService service, SharedPreferences prefs) {
+        super(service, prefs);
         client = new FTPClient();
         address = prefs.getString(Util.PREF_FTP_ADDRESS, "");
         user = prefs.getString(Util.PREF_FTP_USER, "");

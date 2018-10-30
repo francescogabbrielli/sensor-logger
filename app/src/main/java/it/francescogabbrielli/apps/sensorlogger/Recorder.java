@@ -150,7 +150,7 @@ public class Recorder implements ServiceConnection {
             buffer.insert(0, headers.toString());
         }
 
-        Util.Log.v(TAG, "Sensor reading: "+buffer);
+        //Util.Log.v(TAG, "Sensor reading: "+buffer);
 
         return buffer.append('\n').toString();
     }

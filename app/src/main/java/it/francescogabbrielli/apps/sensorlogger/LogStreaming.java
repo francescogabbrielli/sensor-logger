@@ -4,8 +4,8 @@ import android.content.SharedPreferences;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -28,9 +28,11 @@ public class LogStreaming extends LogTarget {
     /** Current timestamp */
     private long timestamp;
 
-    public LogStreaming(SharedPreferences prefs) {
-        super(prefs);
-        server = StreamingServer.getInstance();
+    private int n;
+
+    public LogStreaming(LoggingService service, SharedPreferences prefs) {
+        super(service, prefs);
+        server = service.getStreamingServer();
         port = Util.getIntPref(prefs, Util.PREF_STREAMING_PORT);
         imageType = CONTENT_TYPES.get(prefs.getString(Util.PREF_CAPTURE_IMGFORMAT, ""));
         if (imageType == null)
@@ -57,9 +59,9 @@ public class LogStreaming extends LogTarget {
     public void write(byte[] data) throws IOException {
         String type = imageType;
         long offset = 0;
-        if (data.length<2000) {
+        if (data.length < 2000) {
             type = "text/csv";
-            offset = getTimeOffset(data);
+            //offset = getTimeOffset(data);
         }
         server.stream(data, timestamp+offset, type);
     }
@@ -71,14 +73,22 @@ public class LogStreaming extends LogTarget {
      * @return the time offset
      */
     private long getTimeOffset(byte[] data) {
-        StringBuilder buffer = new StringBuilder();
-        for (byte b : data) {
-            char c = (char) (b & 0xFF);
-            switch (c) {
-                case '.': break;
-                case ',': return Long.parseLong(buffer.toString());
-                default: buffer.append(c);
+        try {
+            StringBuilder buffer = new StringBuilder();
+            for (byte b : data) {
+                char c = (char) (b & 0xFF);
+                switch (c) {
+                    case '.':
+                        break;
+                    case ',':
+                        return Long.valueOf(buffer.toString())*1000000L;
+                    default:
+                        buffer.append(c);
+                }
             }
+        } catch (Exception e) {
+            Util.Log.d(getTag(),
+                    String.format(Locale.US, "Cannot parse time from:", new String (data)));
         }
         return 0;
     }

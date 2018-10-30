@@ -32,7 +32,7 @@ public abstract class LogTarget {
     /** Own hander */
     private Handler handler;
 
-    LogTarget(SharedPreferences prefs) {
+    LogTarget(LoggingService service, SharedPreferences prefs) {
         thread = new HandlerThread(getTag()+" Thread");
         thread.start();
         handler = new Handler(thread.getLooper());

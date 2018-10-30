@@ -16,8 +16,8 @@ public class LogFile extends LogTarget {
     /** The app folder, not the recording folder */
     protected File folder;
 
-    LogFile(SharedPreferences prefs) {
-        super(prefs);
+    LogFile(LoggingService service, SharedPreferences prefs) {
+        super(service, prefs);
         folder = new File(Environment.getExternalStorageDirectory(),
                 prefs.getString(Util.PREF_APP_FOLDER, "SensorLogger"));
 

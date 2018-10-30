@@ -43,25 +43,15 @@ public class StreamingServer implements Runnable {
         return boundary;
     }
 
-    /**
-     * Get the streaming server singleton instance
-
-     * @return the server instance
-     */
-    public static StreamingServer getInstance() {
-        if (instance==null)
-            instance = new StreamingServer();
-        return instance;
-    }
-
     private int port;
     private String boundaryFormat;
     private boolean running;
     private Thread thread;
 
     private Buffer[] buffers;
-    private final static int N_BUFFERS = 4;
-    private final static int BUFFER_SIZE = 2000000;
+    private final static int N_BUFFERS = 3;
+    private final static int BUFFER_SIZE = 512 * 1024;
+    private final static int CHUNK_SIZE = 32 * 1024;
     private int currentBuffer;
     private boolean newData;
     private long delayLimit;
@@ -82,7 +72,7 @@ public class StreamingServer implements Runnable {
         }
     }
 
-    private StreamingServer() {
+    public StreamingServer() {
         buffers = new Buffer[N_BUFFERS];
         for(int i=0;i<N_BUFFERS;i++)
             buffers[i] = new Buffer();
@@ -96,21 +86,23 @@ public class StreamingServer implements Runnable {
      * @return true if it actually starts
      * @throws Exception
      */
-    public synchronized boolean start(int port) {
+    public boolean start(int port) {
         if (running)
             return false;
+        else
+            running = true;
 
         Util.Log.i(TAG, "Start Streaming");
 
         this.port = port;
-        boundaryFormat = "Content-type: %s\r\n"
+        boundaryFormat =
+                "Content-type: %s\r\n"
                 + "Content-Length: %d\r\n"
                 + "X-Timestamp: %d\r\n"
                 + "\r\n";
 
-        running = true;
         thread = new Thread(this);
-        thread.setDaemon(true);
+        //thread.setDaemon(true);
         thread.start();
         return true;
     }
@@ -133,8 +125,8 @@ public class StreamingServer implements Runnable {
      */
     public void stop() {
         if (running) {
-            Util.Log.i(TAG, "Stop Streaming");
             running = false;
+            Util.Log.i(TAG, "Stop Streaming");
             thread.interrupt();
         }
     }
@@ -147,6 +139,7 @@ public class StreamingServer implements Runnable {
                 acceptAndSStream();
             } catch (Exception e) {
                 Util.Log.e(TAG, "Error while streaming", e);
+                try { Thread.sleep(1000); } catch (InterruptedException ie) { }
             }
     }
 
@@ -161,25 +154,28 @@ public class StreamingServer implements Runnable {
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
 
-            serverSocket.setSoTimeout(1000);
+            serverSocket.setSoTimeout(0);
 
             // accept connection
             do try {
-                    socket = serverSocket.accept();
-                    Util.Log.d(TAG, "Connected to "+socket);
-                    delayLimit = 100;
-                } catch (final SocketTimeoutException e) {
-                    if (!running)
-                        return;
-                }
+                socket = serverSocket.accept();
+                Util.Log.d(TAG, "Connected to " + socket);
+                delayLimit = 100000000;
+            } catch (final SocketTimeoutException e) {
+                if (!running)
+                    return;
+            }
+
             while (socket == null);
 
             serverSocket.close();
             stream = new DataOutputStream(socket.getOutputStream());
             stream.writeBytes(HTTP_HEADER);
-            stream.flush();
+
+            int toFlush = HTTP_HEADER.length();
 
             // stream current data
+            out:
             while (running) {
 
                 Buffer buffer = null;
@@ -188,10 +184,10 @@ public class StreamingServer implements Runnable {
 
                     while (!newData)
                         try {
-//                            Util.Log.d(TAG, "Wait for image...");
+                            //Util.Log.d(TAG, "Wait for data...");
                             wait();
                         } catch (final InterruptedException stopMayHaveBeenCalled) {
-                            return;
+                            break out;
                         }
 
                     buffer = buffers[currentBuffer++];
@@ -199,31 +195,45 @@ public class StreamingServer implements Runnable {
                     newData = false;
                 }
 
-                if (SystemClock.elapsedRealtime() - buffer.timestamp > delayLimit) {
-                    Util.Log.i(TAG, "Streaming is delayed: "+delayLimit);
-                    delayLimit *= 2;
-                }
+//                if (SystemClock.elapsedRealtime() - buffer.timestamp > delayLimit) {
+//                    Util.Log.i(TAG, "Streaming is delayed > " + delayLimit + "ns");
+//                    delayLimit *= 2;
+//                }
 
                 stream.writeBytes(BOUNDARY_LINE);
                 stream.writeBytes(String.format(Locale.US, boundaryFormat, buffer.contentType, buffer.length, buffer.timestamp));
                 stream.write(buffer.data, 0, buffer.length);
                 stream.writeBytes("\r\n");
-                stream.flush();
+                toFlush += buffer.length;
+//                if (buffer.contentType.equals("text/csv"))
+//                    Util.Log.i(TAG, buffer.contentType);
+                if (toFlush>CHUNK_SIZE) {
+                    stream.flush();
+                    toFlush = 0;
+                }
             }
 
+            stream.writeBytes(BOUNDARY_LINE+"--\r\n\r\n");
+            stream.flush();
+
+        } catch (IOException e) {
+            throw e;
+        } catch(Throwable t) {
+            Util.Log.e(TAG, "Unexpected error", t);
         } finally {
             try {
-                if (stream!=null) {
-                    stream.writeBytes(BOUNDARY_LINE+"--");
-                    stream.flush();
+                if (stream!=null)
                     stream.close();
-                }
             } catch (final Exception e) {
                 Util.Log.e(TAG, "Error closing streaming", e);
             }
             try { if (socket!=null) socket.close(); }
             catch (final Exception e) { Util.Log.e(TAG, "Error closing streaming client", e); }
         }
+
+    }
+
+    public void dispose() {
 
     }
 
