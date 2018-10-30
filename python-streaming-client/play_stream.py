@@ -6,77 +6,102 @@ from stream_client import StreamClient
 from time import time, sleep
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from Tkinter import *
-from threading import Thread
-import numpy as np
-import cv2
-
+from threading import Thread, Lock
+from stream_data import StreamBuffer
 
 # Create a window with figure (remove this part and the display thread if don't need showing)
+# https://stackoverflow.com/questions/34764535/why-cant-matplotlib-plot-in-a-different-thread
 window=Tk()
-fig = f.Figure()
-ax = fig.add_subplot(1, 1, 1)
+fig = f.Figure(figsize=(8,8))
+ax = fig.add_subplot(2,1,1)
+ax2 = fig.add_subplot(2,1,2)
 canvas = FigureCanvasTkAgg(fig, master=window)
 canvas.draw()
 canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
 canvas._tkcanvas.pack(side=TOP, fill=BOTH, expand=1)
 imageShown = None
+line1 = None
+line2 = None
+line3 = None
+frame = None
+ylim_changed = False
+xlim_changed = False
+max_x = 0
+min_x = 0
+max_y = 1
+min_y = 0
+lock = Lock()
+
+DATA_LEN = 100
+timestamps = range(0,DATA_LEN)
+currentIndex = 0
+ax2.set_ylim(-15,15)
 
 
-def show(data):
+
+def show(buffer):
     """
     Show matplotlib image on global imageShown
     :param data: the jpeg data
     """
-    global imageShown
-    im = img.imread(BytesIO(data), format="jpg")
-    if imageShown is None:
-        imageShown = ax.imshow(im)
-    else:
+    global imageShown, line1, line2, line3
+    try :
+        im = img.imread(BytesIO(buffer.image), format="jpg")
         imageShown.set_data(im)
-    canvas.draw()
-    plt.pause(0.001)
+        line1.set_ydata(buffer.data[0])
+        line2.set_ydata(buffer.data[1])
+        line3.set_ydata(buffer.data[2])
+        canvas.draw()
+        plt.pause(0.01)
+    except Exception as e:
+        print e
 
 
-# Create a stream client
-s = StreamClient("192.168.1.1", "8080")
+# Create stream client
+s = StreamClient("192.168.1.2", 8080)
+sb = StreamBuffer()
 
 
 #target of display thread
 def display():
-    type = ""
-    while time() - s.last_update < 1:
-        [type, frame] = s.get_current()
-        if type=="image":
-            show(frame)
-        elif type:
-            print frame
-        sleep(0.066)
+    global imageShown, line1, line2, line3
+    imageShown = ax.imshow(img.imread("img.jpg", format="jpg"))
+    line1, = ax2.plot([0]*DATA_LEN, 'r-')
+    line2, = ax2.plot([0]*DATA_LEN, 'b-')
+    line3, = ax2.plot([0]*DATA_LEN, 'g-')
+    sleep(0.1)
+    while True:
+        show(sb.getCurrent())
+        # do another task with the data
+        sb.swap()
+        sleep(0.01)
 
 
-#target of CV thread
-def cv():
-    while time()-s.last_update < 1:
-        [type,frame] = s.get_current()
-        if type=="image":
-            # convert data to CV2
-            nparr = np.fromstring(frame, np.uint8)
-            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            #do_cv_stuff_here(image, nparr)
-            #no need to sleep
+def streaming_callback(timestamp, type, data):
+    global currentIndex, frame
+    if type=="image":
+        sb.updateImage(data)
+    elif type:
+        try:
+            readings = data.rstrip().split(",")
+            timestamps[currentIndex] = int(readings[0])
+            sb.updateData(currentIndex, readings[1:4])
+            currentIndex += 1
+            if currentIndex == DATA_LEN:
+                currentIndex = 0
+        except Exception as e:
+            print (e)
+            print ("DATA=[%s]" % data.rstrip())
 
 
 # start client and show stream
-s.get()
+s.get(streaming_callback)#get="VIDEO.CGI", user="admin", pw="fr4n7g48")
 
 # wait for client to buffer some data
 sleep(1)
 
 # start display thread
 Thread(name="display", target=display).start()
-
-# start a generic computer vision thread (implement yours)
-Thread(name="cv", target=display).start()
-
 
 # wait
 window.mainloop()
