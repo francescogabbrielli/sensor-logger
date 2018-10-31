@@ -95,7 +95,7 @@ def streaming_callback(timestamp, type, data):
 
 
 # start client and show stream
-s.get(streaming_callback)#get="VIDEO.CGI", user="admin", pw="fr4n7g48")
+s.get(streaming_callback)
 
 # wait for client to buffer some data
 sleep(1)
