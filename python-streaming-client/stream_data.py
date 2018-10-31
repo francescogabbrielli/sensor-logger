@@ -4,7 +4,7 @@ from copy import copy
 
 class SensorData:
 
-    def __init__(self, dimension, len, data=None):
+    def __init__(self, len, dimension, data=None):
         self.dimension = dimension
         self.len = len
         if data is None:
@@ -22,24 +22,24 @@ class SensorData:
         return self.data[item]
 
     def __copy__(self):
-        return SensorData(self.dimension, self.len, self.data[:])
+        return SensorData(self.len, self.dimension, self.data[:])
 
 class Buffer:
 
     def __init__(self, len, image=None, data=None):
-        self.data = SensorData(3, len) if data is None else copy(data)
+        self.data = SensorData(len, 3) if data is None else copy(data)
         self.image = image
 
     def __copy__(self):
-        return Buffer(self.image, self.data)
+        return Buffer(self.data.len, image=self.image, data=self.data)
 
 
 class StreamBuffer:
 
     N_BUFFERS = 3
 
-    def __init__(self):
-        self.buffers = [Buffer() for i in range(0, StreamBuffer.N_BUFFERS)]
+    def __init__(self, len):
+        self.buffers = [Buffer(len) for i in range(0, StreamBuffer.N_BUFFERS)]
         self.current = 0
         self.lock = Lock()
 

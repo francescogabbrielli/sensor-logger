@@ -59,7 +59,7 @@ def show(buffer):
 
 # Create stream client
 s = StreamClient("192.168.1.2", 8080)
-sb = StreamBuffer()
+sb = StreamBuffer(DATA_LEN)
 
 
 #target of display thread
@@ -95,7 +95,7 @@ def streaming_callback(timestamp, type, data):
 
 
 # start client and show stream
-s.get(streaming_callback)#get="VIDEO.CGI", user="admin", pw="fr4n7g48")
+s.get(streaming_callback)
 
 # wait for client to buffer some data
 sleep(1)
