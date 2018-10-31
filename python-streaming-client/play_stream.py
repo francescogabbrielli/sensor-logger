@@ -59,7 +59,7 @@ def show(buffer):
 
 # Create stream client
 s = StreamClient("192.168.1.2", 8080)
-sb = StreamBuffer()
+sb = StreamBuffer(DATA_LEN)
 
 
 #target of display thread
