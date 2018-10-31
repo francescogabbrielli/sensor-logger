@@ -38,8 +38,8 @@ class StreamBuffer:
 
     N_BUFFERS = 3
 
-    def __init__(self):
-        self.buffers = [Buffer() for i in range(0, StreamBuffer.N_BUFFERS)]
+    def __init__(self, len):
+        self.buffers = [Buffer(len) for i in range(0, StreamBuffer.N_BUFFERS)]
         self.current = 0
         self.lock = Lock()
 
