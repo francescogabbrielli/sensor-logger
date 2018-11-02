@@ -53,6 +53,9 @@ public class Recorder implements ServiceConnection {
     /** Lengths of each sensor data */
     private final SparseIntArray dataLengths;
 
+    /** 3d sensors axes rotation */
+    private Rotation rotation;
+
     /**
      * Create a new {@link Recorder}.
      *
@@ -66,6 +69,33 @@ public class Recorder implements ServiceConnection {
         this.sensorReader = reader;
         this.streamingServer = server;
         dataLengths = new SparseIntArray();
+
+        //basic preferences
+        filenameData = prefs.getString(Util.PREF_FILENAME_DATA, "sensors.csv");
+        filenameFrame = prefs.getString(Util.PREF_FILENAME_FRAME, "frame");
+        flagTime = prefs.getBoolean(Util.PREF_LOGGING_TIME, false);
+        flagTimestamp = prefs.getBoolean(Util.PREF_LOGGING_TIMESTAMP, false);
+        flagHeaders = prefs.getBoolean(Util.PREF_LOGGING_HEADERS, false);
+        flagNetwork = Util.getIntPref(prefs, Util.PREF_FTP)>0;
+        duration = Util.getLongPref(prefs, Util.PREF_LOGGING_RATE);
+        ext = prefs.getString(Util.PREF_CAPTURE_IMGFORMAT,".png");
+        formatTimestamp = prefs.getString(Util.PREF_LOGGING_TIMESTAMP_FORMAT, "%s%07d%s");
+
+        //read configurable sensors dimensions
+        for (String k : prefs.getAll().keySet())
+            if (k.startsWith("pref_sensor_") && k.endsWith("_length"))
+                try{
+                    int sensor = Integer.parseInt(k.substring(12, k.length() - 7));
+                    dataLengths.put(sensor, Integer.parseInt(prefs.getString(k, "0")));
+                } catch(Exception e) {
+                    Util.Log.e(TAG, "Wrong configuration: "+k, e);
+                }
+
+        rotation = Rotation.getRotation(
+                Util.getIntPref(prefs, Util.PREF_ROTATION_X),
+                Util.getIntPref(prefs, Util.PREF_ROTATION_Y),
+                Util.getIntPref(prefs, Util.PREF_ROTATION_Z)
+        );
     }
 
     /**
@@ -167,6 +197,7 @@ public class Recorder implements ServiceConnection {
         }
         for (SensorEvent e : sensorReader) {//iterate through accelerometer and gyroscope (and magnetometer, etc)
             int l = Math.min(e.values.length, getSensorDataLength(e.sensor));
+            float[] values = l>=3 ? rotation.multiply(e.values) : e.values;
             for (int i = 0; i < l; i++) {//iterate through x, y, z (and what else... if a sensor has more than 3 values)
                 if (flagHeaders && counter==0) {
                     headers.append(Util.getSensorName(e.sensor));
@@ -174,7 +205,7 @@ public class Recorder implements ServiceConnection {
                         headers.append(" ").append(Util.DATA_HEADERS[i]);
                     headers.append(",");
                 }
-                buffer.append(String.format(Locale.US, "%2.5f,", e.values[i]));
+                buffer.append(String.format(Locale.US, "%2.5f,", values[i]));
             }
         }
         if (buffer.length() > 0)
@@ -208,35 +239,11 @@ public class Recorder implements ServiceConnection {
      * Start recording. Binds to {@link LoggingService}
      */
     public void start() {
-
-        //basic preferences
-        filenameData = prefs.getString(Util.PREF_FILENAME_DATA, "sensors.csv");
-        filenameFrame = prefs.getString(Util.PREF_FILENAME_FRAME, "frame");
-        flagTime = prefs.getBoolean(Util.PREF_LOGGING_TIME, false);
-        flagTimestamp = prefs.getBoolean(Util.PREF_LOGGING_TIMESTAMP, false);
-        flagHeaders = prefs.getBoolean(Util.PREF_LOGGING_HEADERS, false);
-        flagNetwork = Util.getIntPref(prefs, Util.PREF_FTP)>0;
-        folder = dateFormat.format(new Date());
-        duration = Util.getLongPref(prefs, Util.PREF_LOGGING_RATE);
-        ext = prefs.getString(Util.PREF_CAPTURE_IMGFORMAT,".png");
-        formatTimestamp = prefs.getString(Util.PREF_LOGGING_TIMESTAMP_FORMAT, "%s%07d%s");
-
-        //read configurable sensors dimensions
-        for (String k : prefs.getAll().keySet())
-            if (k.startsWith("pref_sensor_") && k.endsWith("_length"))
-                try{
-                    int sensor = Integer.parseInt(k.substring(12, k.length() - 7));
-                    dataLengths.put(sensor, Integer.parseInt(prefs.getString(k, "0")));
-                } catch(Exception e) {
-                    Util.Log.e(TAG, "Wrong configuration: "+k, e);
-                }
-
         counter = 0;
+        folder = dateFormat.format(new Date());
 
-        //binding
+        //binding the service starts recording
         context.bindService(new Intent(context, LoggingService.class), this, Context.BIND_AUTO_CREATE);
-
-
     }
 
     /**
@@ -249,11 +256,13 @@ public class Recorder implements ServiceConnection {
 
         sensorReader.stop();
 
-        if (bound && counter>0)
+        if (bound && counter>0) {
             service.log(folder, null, LogTarget.CLOSE, null, 0);
+            service.disconnect();
+        }
 
         // unbinding
-        if (bound && context!=null)//TODO: use a weak reference...
+        if (bound && context!=null)//TODO: use a weak reference?
             context.unbindService(this);
     }
 

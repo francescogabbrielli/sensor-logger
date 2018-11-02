@@ -1,6 +1,7 @@
 package it.francescogabbrielli.apps.sensorlogger;
 
 import android.Manifest;
+import android.annotation.TargetApi;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -10,6 +11,7 @@ import android.content.pm.PackageManager;
 import android.hardware.SensorManager;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
+import android.os.Build;
 import android.os.Environment;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
@@ -200,9 +202,10 @@ public class MainActivity extends AppCompatActivity implements
     private boolean recPressed, recording;
     private long lastPressed;
 
+    @TargetApi(Build.VERSION_CODES.M)
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if(event.getAction() == MotionEvent.ACTION_DOWN){
+        if(event.getAction() == MotionEvent.ACTION_DOWN) {
             event.setAction(MotionEvent.ACTION_BUTTON_RELEASE);
             return onTrackballEvent(event);
         }
@@ -220,7 +223,7 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode==KeyEvent.KEYCODE_VOLUME_DOWN || keyCode==KeyEvent.KEYCODE_VOLUME_UP ) {
+        if (keyCode==KeyEvent.KEYCODE_VOLUME_DOWN || keyCode==KeyEvent.KEYCODE_VOLUME_UP) {
             recPressed();
             return true;
         }
@@ -231,12 +234,14 @@ public class MainActivity extends AppCompatActivity implements
         if (SystemClock.elapsedRealtime()-lastPressed>750) {
             lastPressed = SystemClock.elapsedRealtime();
             AudioManager mgr = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-            if (!recPressed) {
+            if (!recPressed && !recording) {
                 recPressed = true;
-                mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
+                if (mgr!=null)
+                    mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
                 showPrepareAnimation();
             } else {
-                mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
+                if (mgr!=null)
+                    mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
                 stopRecording(R.string.toast_recording_stop);
             }
         }
@@ -256,26 +261,30 @@ public class MainActivity extends AppCompatActivity implements
     private void showPrepareAnimation() {
         if (animExec==null)
             animExec = Executors.newSingleThreadScheduledExecutor();
-        prepareFuture = animExec.schedule(new Runnable() {
-            @Override
-            public void run() {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        TextView t = findViewById(R.id.anim_prepare);
-                        int val = 4;
-                        try { val = Integer.parseInt(t.getText().toString()); } catch(Exception e) {}
-                        if (--val>0) {
-                            startTone(ToneGenerator.TONE_CDMA_PIP, 150);
-                            t.setText(String.valueOf(val));
-                            showPrepareAnimation();
-                        } else {
-                            startRecording();
+        try {
+            prepareFuture = animExec.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            TextView t = findViewById(R.id.anim_prepare);
+                            int val = 4;
+                            try { val = Integer.parseInt(t.getText().toString()); } catch(Exception e) {}
+                            if (--val>0) {
+                                startTone(ToneGenerator.TONE_CDMA_PIP, 150);
+                                t.setText(String.valueOf(val));
+                                showPrepareAnimation();
+                            } else {
+                                startRecording();
+                            }
                         }
-                    }
-                });
-            }
-        }, 1, TimeUnit.SECONDS);
+                    });
+                }
+            }, 1, TimeUnit.SECONDS);
+        } catch(Exception e) {
+            Util.Log.e(TAG, "Cannot start prepare animation", e);
+        }
     }
     private void hidePrepareAnimation() {
         if (prepareFuture !=null)
@@ -288,18 +297,22 @@ public class MainActivity extends AppCompatActivity implements
         timestamp = SystemClock.elapsedRealtimeNanos()- frameDuration;
         if (animExec==null)
             animExec = Executors.newSingleThreadScheduledExecutor();
-        recordingFuture = animExec.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        ImageView i = findViewById(R.id.img_record);
-                        i.setVisibility(i.getVisibility()==View.VISIBLE ? View.INVISIBLE : View.VISIBLE);
-                    }
-                });
-            }
-        }, 0, 500, TimeUnit.MILLISECONDS);
+        try {
+            recordingFuture = animExec.scheduleAtFixedRate(new Runnable() {
+                @Override
+                public void run() {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ImageView i = findViewById(R.id.img_record);
+                            i.setVisibility(i.getVisibility() == View.VISIBLE ? View.INVISIBLE : View.VISIBLE);
+                        }
+                    });
+                }
+            }, 0, 500, TimeUnit.MILLISECONDS);
+        } catch(Exception e) {
+            Util.Log.e(TAG, "Cannot start rec animation", e);
+        }
     }
 
     private void hideBlinkingAnimation() {
@@ -307,18 +320,22 @@ public class MainActivity extends AppCompatActivity implements
             animExec = Executors.newSingleThreadScheduledExecutor();
         if (recordingFuture!=null)
             recordingFuture.cancel(true);
-        animExec.schedule(new Runnable() {
-            @Override
-            public void run() {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        ImageView i = findViewById(R.id.img_record);
-                        i.setVisibility(View.INVISIBLE);
-                    }
-                });
-            }
-        }, 0, TimeUnit.SECONDS);
+        try {
+            animExec.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ImageView i = findViewById(R.id.img_record);
+                            i.setVisibility(View.INVISIBLE);
+                        }
+                    });
+                }
+            }, 0, TimeUnit.SECONDS);
+        } catch(Exception e) {
+            Util.Log.e(TAG, "Cannot stop rec animation", e);
+        }
     }
 
     void startRecording() {

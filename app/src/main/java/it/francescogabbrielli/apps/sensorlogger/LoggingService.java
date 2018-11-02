@@ -98,7 +98,6 @@ public class LoggingService extends Service {
     @Override
     public boolean onUnbind(Intent intent) {
         Util.Log.v(TAG, "in onUnbind");
-        disconnect();
         return true;
     }
 
@@ -124,8 +123,6 @@ public class LoggingService extends Service {
             t.dispose();
         dataLoggers.clear();
         thread.quit();
-        if (streamingServer!=null)
-            streamingServer.dispose();
         super.onDestroy();
     }
 

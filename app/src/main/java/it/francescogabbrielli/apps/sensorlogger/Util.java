@@ -47,6 +47,10 @@ public class Util {
     public final static String PREF_CAPTURE_IMGFORMAT   = "pref_capture_imgformat";
     public final static String PREF_CAPTURE_SOUND       = "pref_capture_sound";
 
+    public final static String PREF_ROTATION_X          = "pref_rotation_x";
+    public final static String PREF_ROTATION_Y          = "pref_rotation_y";
+    public final static String PREF_ROTATION_Z          = "pref_rotation_z";
+
     public final static String EXTRA_TYPE       = "extra_type";
     public final static String EXTRA_DATA       = "extra_data";
     public final static String EXTRA_FILENAME   = "extra_filename";

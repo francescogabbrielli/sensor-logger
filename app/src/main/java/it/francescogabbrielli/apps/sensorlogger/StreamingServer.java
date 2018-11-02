@@ -211,15 +211,27 @@ public class StreamingServer implements Runnable {
             // accept connection
             do try {
                 socket = serverSocket.accept();
-                if (main!=null)
+                Util.Log.d(TAG, "Connected to " + socket);
+                delayLimit = 100000000;
+
+                // start recording automatically if set
+                if (main!=null) {
                     main.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             main.startRecording();
                         }
                     });
-                Util.Log.d(TAG, "Connected to " + socket);
-                delayLimit = 100000000;
+                    synchronized (this) {
+                        while (!newData)
+                            try {
+                                wait();
+                            } catch (final InterruptedException stopMayHaveBeenCalled) {
+                                break;
+                            }
+                    }
+                }
+
             } catch (final SocketTimeoutException e) {
                 if (!running)
                     return;

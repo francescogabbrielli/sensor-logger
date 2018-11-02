@@ -57,7 +57,7 @@ public class LogStreaming extends LogTarget {
     @Override
     public void write(byte[] data, long timestamp) throws IOException {
         String type = imageType;
-        if (data.length < 2000)
+        if (data.length < 2000)//heuristic guess
             type = "text/csv";
         server.stream(data, timestamp, type);
     }

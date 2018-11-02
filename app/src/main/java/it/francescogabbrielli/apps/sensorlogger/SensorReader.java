@@ -37,8 +37,6 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
     /** Own thread, where to register sensor listeners */
     private HandlerThread ht;
 
-    /** 3d sensors axes rotation */
-    private Mat rotation;
 
     /**
      * Setup the sensor reader with the sensor specified in the preferences
@@ -61,6 +59,7 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
                 if (s!=null)
                     sensors.add(s);
             }
+
     }
 
     /**
@@ -139,31 +138,6 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
     @Override
     public void onSensorChanged(SensorEvent event) {
         readings.put(event.sensor.getType(), event);
-    }
-
-
-    private void createRotation(double theta, double phi) {
-        rotation = new Mat(3,3, CvType.CV_32F);
-        rotation.put(0,0,0);
-        rotation.put(0,1,0);
-        rotation.put(0,2,0);
-        rotation.put(1,0,0);
-        rotation.put(1,1,0);
-        rotation.put(1,2,0);
-        rotation.put(2,0,0);
-        rotation.put(2,1,0);
-        rotation.put(2,2,0);
-    }
-
-    private void applyRotation(float[] values) {
-        Mat v = new Mat(1,3, CvType.CV_32F);
-        v.put(0,0, values[0]);
-        v.put(1,0, values[1]);
-        v.put(2,0, values[2]);
-        Mat res = rotation.mul(v);
-        values[0] = (float) res.get(0,0)[0];
-        values[1] = (float) res.get(0,0)[1];
-        values[2] = (float) res.get(0,0)[2];
     }
 
     public void dispose() {
