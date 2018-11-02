@@ -105,6 +105,9 @@ public class MainActivity extends AppCompatActivity implements
         //start the service
         startService(new Intent(this, LoggingService.class));
 
+        recorder = new Recorder(this,
+                new SensorReader((SensorManager) getSystemService(SENSOR_SERVICE), prefs),
+                new StreamingServer());
     }
 
     /**
@@ -123,12 +126,12 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     protected void onResume() {
+
         super.onResume();
 
-        recorder = new Recorder(
-                new SensorReader((SensorManager) getSystemService(SENSOR_SERVICE), prefs),
-                new StreamingServer(Util.getIntPref(prefs, Util.PREF_STREAMING)>0
-                        && prefs.getBoolean(Util.PREF_STREAMING_RECORD, false) ? this : null));
+        //make the streaming server listen for connections
+        if (Util.getIntPref(prefs, Util.PREF_STREAMING)>0 && prefs.getBoolean(Util.PREF_STREAMING_RECORD, false))
+            recorder.startStreaming();
 
         if (!OpenCVLoader.initDebug()) {
             Util.Log.d("OpenCV", "Internal OpenCV library not found. Using OpenCV Manager for initialization");
@@ -145,23 +148,31 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     protected void onPause() {
-        if (SystemClock.elapsedRealtime()-tResume>100) {
+
+        if (SystemClock.elapsedRealtime()-tResume>250) {
+
             Util.Log.v(TAG, "onPause");
-            stopRecording(R.string.toast_recording_interrupted);
+
+            //make the streaming server listen for connections
+            if (Util.getIntPref(prefs, Util.PREF_STREAMING)>0 && prefs.getBoolean(Util.PREF_STREAMING_RECORD, false))
+                recorder.stopStreaming();
+
             if (camera != null)
                 camera.disableView();
             if (toneGenerator != null)
                 toneGenerator.release();
             toneGenerator = null;
-            recorder.dispose();
+
         } else
             Util.Log.w(TAG, "Pause called after resume?");
+
         super.onPause();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        recorder.dispose();
         if (animExec!=null)
             animExec.shutdown();
     }
@@ -235,9 +246,14 @@ public class MainActivity extends AppCompatActivity implements
     private ScheduledFuture prepareFuture, recordingFuture;
     private ToneGenerator toneGenerator;
 
-    private void showPrepareAnimation() {
+    private void startTone(int toneType, int duration) {
         if (toneGenerator==null && prefs.getBoolean(Util.PREF_CAPTURE_SOUND, false))
             toneGenerator = new ToneGenerator(AudioManager.STREAM_MUSIC, 100);
+        if (toneGenerator!=null)
+            toneGenerator.startTone(toneType, duration);
+    }
+
+    private void showPrepareAnimation() {
         if (animExec==null)
             animExec = Executors.newSingleThreadScheduledExecutor();
         prepareFuture = animExec.schedule(new Runnable() {
@@ -250,8 +266,7 @@ public class MainActivity extends AppCompatActivity implements
                         int val = 4;
                         try { val = Integer.parseInt(t.getText().toString()); } catch(Exception e) {}
                         if (--val>0) {
-                            if (toneGenerator!=null)
-                                toneGenerator.startTone(ToneGenerator.TONE_CDMA_PIP, 150);
+                            startTone(ToneGenerator.TONE_CDMA_PIP, 150);
                             t.setText(String.valueOf(val));
                             showPrepareAnimation();
                         } else {
@@ -307,10 +322,9 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     void startRecording() {
-        if (toneGenerator!=null)
-            toneGenerator.startTone(ToneGenerator.TONE_CDMA_PIP, 300);
+        startTone(ToneGenerator.TONE_CDMA_PIP, 300);
         recording = true;
-        recorder.start(MainActivity.this);
+        recorder.start();
         hidePrepareAnimation();
         showBlinkingAnimation();
     }
@@ -318,8 +332,7 @@ public class MainActivity extends AppCompatActivity implements
     void stopRecording(int msg) {
         if (recording || recPressed)
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
-        if (toneGenerator!=null)
-            toneGenerator.startTone(ToneGenerator.TONE_CDMA_CONFIRM, 300);
+        startTone(ToneGenerator.TONE_CDMA_CONFIRM, 300);
         recPressed = false;
         recording = false;
         recorder.stop();

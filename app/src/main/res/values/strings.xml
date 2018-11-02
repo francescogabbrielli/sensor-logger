@@ -8,6 +8,7 @@
     <string name="toast_recording_stop">Recording stopped</string>
     <string name="toast_recording_interrupted">Recording interrupted</string>
     <string name="toast_recording_offlimits">Recording reached maximum length</string>
+    <string name="toast_recording_endofstream">Recording stopped (end of streaming)</string>
 
     <!-- Strings related to Settings -->
     <string-array name="pref_logtarget_list_titles">
@@ -42,6 +43,8 @@
     <string name="pref_streaming_description">The data will be streamed over HTTP: %s</string>
     <string name="pref_streaming_port_title">Port</string>
     <string name="pref_streaming_port_description">Start streaming server on port %s</string>
+    <string name="pref_streaming_record_title">Record on streaming</string>
+    <string name="pref_streaming_record_description">Start/stop streaming on a remote streaming request</string>
 
     <!-- Settings -> Logging -->
     <string name="pref_logging_header">Logging</string>

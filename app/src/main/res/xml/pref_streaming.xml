@@ -19,4 +19,11 @@
         android:inputType="number"
         />
 
+    <SwitchPreference
+        android:key="pref_streaming_record"
+        android:title="@string/pref_streaming_record_title"
+        android:summary="@string/pref_streaming_record_description"
+        android:defaultValue="false"
+        />
+
 </PreferenceScreen>

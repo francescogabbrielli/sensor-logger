@@ -5,7 +5,7 @@ import android.util.Log;
 import java.util.Locale;
 
 /**
- * An utility class to post a specific operation to a {@link LogTarget}
+ * A utility class to post a specific operation to a {@link LogTarget}
  */
 public class LogOperation {
 

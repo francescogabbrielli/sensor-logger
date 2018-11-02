@@ -27,9 +27,6 @@ public class Util {
     public final static String PREF_FILENAME_DATA   = "pref_filename_data";
     public final static String PREF_FILENAME_FRAME  = "pref_filename_frame";
 
-    public final static String PREF_SENSORS_THETA   = "pref_sensors_theta";
-    public final static String PREF_SENSORS_PHI     = "pref_sensors_phi";
-
     public final static String PREF_FILE            = "pref_file";
     public final static String PREF_FTP             = "pref_ftp";
     public final static String PREF_FTP_ADDRESS     = "pref_ftp_address";

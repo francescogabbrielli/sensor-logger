@@ -1,11 +1,12 @@
 package it.francescogabbrielli.apps.sensorlogger;
 
-import android.preference.PreferenceManager;
+import android.os.SystemClock;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.Locale;
 
@@ -22,70 +23,96 @@ public class StreamingServer implements Runnable {
 
     private static final String TAG = StreamingServer.class.getSimpleName();
 
+    /** A new random boundary */
     private static final String BOUNDARY = makeBoundary(32);
+    /** Boundary line to separate parts in the stream */
     private static final String BOUNDARY_LINE = "\r\n--" + BOUNDARY + "\r\n";
+    /** HTTP header */
     private static final String HTTP_HEADER = (
             "HTTP/1.0 200 OK\r\n" +
-                "Server: SensorLogger\r\n" +
-                "Connection: close\r\n" +
-                "Max-Age: 0\r\n" +
-                "Expires: 0\r\n" +
-                "Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n" +
-                "Pragma: no-cache\r\n" +
-                "Content-Type: multipart/x-mixed-replace; boundary=" + BOUNDARY + "\r\n" +
-                "\r\n");
+                    "Server: SensorLogger\r\n" +
+                    "Connection: close\r\n" +
+                    "Max-Age: 0\r\n" +
+                    "Expires: 0\r\n" +
+                    "Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n" +
+                    "Pragma: no-cache\r\n" +
+                    "Content-Type: multipart/x-mixed-replace; boundary=" + BOUNDARY + "\r\n" +
+                    "\r\n");
 
+    /** Create a random boundary */
     private static String makeBoundary(int len) {
         String boundary = "";
-        for (int i = 0; i < len/2; i++)
+        for (int i = 0; i < len / 2; i++)
             boundary += Integer.toHexString((int) (Math.random() * 255));
         return boundary;
     }
-
-    private MainActivity main;
 
     private int port;
     private String boundaryFormat;
     private boolean running;
     private Thread thread;
 
+    /** The server socket */
+    private ServerSocket serverSocket;
+
+    /** The streaming buffers */
     private Buffer[] buffers;
+    /** Number of buffers */
     private final static int N_BUFFERS = 3;
+    /** Size of each buffer */
     private final static int BUFFER_SIZE = 512 * 1024;
+    /** Size beyond which the outputstream is flushed */
     private final static int CHUNK_SIZE = 32 * 1024;
+    /** Current buffer index */
     private int currentBuffer;
+    /** New data available */
     private boolean newData;
+    /** Delay beyond which to logcat a delay in the streaming */
     private long delayLimit;
 
+    /** Recording control callback */
+    private MainActivity main;
+
+    /**
+     * Buffer where to write the data to be streamed
+     */
     class Buffer {
+        /** Buffer data. Of fixed length BUFFER_SIZE */
         byte[] data;
+        /** Actual length of current data */
         int length;
+        /** Timestamp of current data */
         long timestamp;
+        /** Content-Type of current data */
         String contentType;
+
         Buffer() {
             this.data = new byte[BUFFER_SIZE];
         }
+
+        /**
+         * Write data into this buffer
+         * @param data the actual data to be streamed
+         * @param timestamp the timestamp of the data
+         * @param contentType the content type of the data
+         */
         void setData(byte[] data, long timestamp, String contentType) {
             length = data.length;
-            System.arraycopy(data,0, this.data, 0, length);
+            System.arraycopy(data, 0, this.data, 0, length);
             this.timestamp = timestamp;
             this.contentType = contentType;
         }
     }
 
-    /**
-     * If the main activity is specified the recording can be started on a streaming request
-     *
-     * @param main the {@link MainActivity}
-     */
-    public StreamingServer(MainActivity main) {
+    public StreamingServer() {
         buffers = new Buffer[N_BUFFERS];
-        for(int i=0;i<N_BUFFERS;i++)
+        for (int i = 0; i < N_BUFFERS; i++)
             buffers[i] = new Buffer();
         currentBuffer = 0;
+    }
+
+    public void setRecordingCallback(MainActivity main) {
         this.main = main;
-        if (main!=null)
-            start(Util.getIntPref(PreferenceManager.getDefaultSharedPreferences(main), Util.PREF_STREAMING_PORT));
     }
 
     /**
@@ -111,7 +138,7 @@ public class StreamingServer implements Runnable {
                 + "\r\n";
 
         thread = new Thread(this);
-        //thread.setDaemon(true);
+        thread.setDaemon(true);
         thread.start();
         return true;
     }
@@ -136,25 +163,39 @@ public class StreamingServer implements Runnable {
         if (running) {
             running = false;
             Util.Log.i(TAG, "Stop Streaming");
+            try { serverSocket.close(); }
+            catch(Exception e) {Util.Log.e(TAG, "Can't stop?", e);}
             thread.interrupt();
         }
     }
 
+    /**
+     * Main server loop
+     */
     @Override
     public void run() {
         while (running)
             try {
                 Util.Log.d(TAG, "Listen for incoming connections...");
                 acceptAndSStream();
-                if (main!=null)
-                    main.stopRecording(R.string.toast_recording_endofstream);
-            } catch (Exception e) {
+            } catch( SocketException e ) {
+                //
+            } catch ( Exception e ) {
                 Util.Log.e(TAG, "Error while streaming", e);
                 try { Thread.sleep(1000); } catch (InterruptedException ie) { }
+            } finally {
+                if (main != null)
+                    main.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            main.stopRecording(R.string.toast_recording_endofstream);
+                        }
+                    });
             }
     }
 
     /**
+     * Listen for incoming connections and stream after receiving one
      *
      * @throws IOException
      */
@@ -163,7 +204,6 @@ public class StreamingServer implements Runnable {
         Socket socket = null;
         DataOutputStream stream = null;
 
-        ServerSocket serverSocket = null;
         try {
             serverSocket = new ServerSocket(port);
             serverSocket.setSoTimeout(0);
@@ -172,7 +212,12 @@ public class StreamingServer implements Runnable {
             do try {
                 socket = serverSocket.accept();
                 if (main!=null)
-                    main.startRecording();
+                    main.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            main.startRecording();
+                        }
+                    });
                 Util.Log.d(TAG, "Connected to " + socket);
                 delayLimit = 100000000;
             } catch (final SocketTimeoutException e) {
@@ -209,10 +254,10 @@ public class StreamingServer implements Runnable {
                     newData = false;
                 }
 
-//                if (SystemClock.elapsedRealtime() - buffer.timestamp > delayLimit) {
-//                    Util.Log.i(TAG, "Streaming is delayed > " + delayLimit + "ns");
-//                    delayLimit *= 2;
-//                }
+                if (SystemClock.elapsedRealtime() - buffer.timestamp > delayLimit) {
+                    Util.Log.i(TAG, "Streaming is delayed by > " + delayLimit + "ns");
+                    delayLimit *= 2;
+                }
 
                 stream.writeBytes(BOUNDARY_LINE);
                 stream.writeBytes(String.format(Locale.US, boundaryFormat, buffer.contentType, buffer.length, buffer.timestamp));
@@ -235,6 +280,7 @@ public class StreamingServer implements Runnable {
         } catch(Throwable t) {
             Util.Log.e(TAG, "Unexpected error", t);
         } finally {
+            Util.Log.d(TAG, "Closing down");
             if (serverSocket!=null)
                 serverSocket.close();
             try {

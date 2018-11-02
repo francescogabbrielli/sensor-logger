@@ -5,7 +5,6 @@ import android.content.SharedPreferences;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -21,10 +20,12 @@ public class LogStreaming extends LogTarget {
 
     /** Server port */
     private int port;
-    /** Content imageType of streaming */
+    /** Image Content-Type of the streaming */
     private String imageType;
     /** The server */
     private StreamingServer server;
+    /** If recording can be controlled remotely */
+    private boolean remoteControl;
 
 
     public LogStreaming(LoggingService service, SharedPreferences prefs) {
@@ -34,6 +35,7 @@ public class LogStreaming extends LogTarget {
         imageType = CONTENT_TYPES.get(prefs.getString(Util.PREF_CAPTURE_IMGFORMAT, ""));
         if (imageType == null)
             imageType = "image/*";
+        remoteControl = prefs.getBoolean(Util.PREF_STREAMING_RECORD, false);
     }
 
     @Override
@@ -43,7 +45,8 @@ public class LogStreaming extends LogTarget {
 
     @Override
     public void connect() throws IOException {
-        server.start(port);
+        if (!remoteControl)
+            server.start(port);
     }
 
     @Override
@@ -66,7 +69,8 @@ public class LogStreaming extends LogTarget {
 
     @Override
     public void disconnect() throws IOException {
-        server.stop();
+        if (!remoteControl)
+            server.stop();
     }
 
 }

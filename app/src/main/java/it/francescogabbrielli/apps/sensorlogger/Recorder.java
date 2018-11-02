@@ -21,10 +21,15 @@ public class Recorder implements ServiceConnection {
     private final static String TAG = Recorder.class.getSimpleName();
 
     private final static int MAX_RECORDING_TIME = 3600000;//1h in ms
+
     /** Format for timestamping files */
     private final static DateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd__HH_mm_ss", Locale.US);
+
     /** MainActivity context */
     private MainActivity context;
+    /** Current preferences */
+    private SharedPreferences prefs;
+
     /** The data-logging service */
     private LoggingService service;
     /** Bound to service */
@@ -48,7 +53,16 @@ public class Recorder implements ServiceConnection {
     /** Lengths of each sensor data */
     private final SparseIntArray dataLengths;
 
-    Recorder(SensorReader reader, StreamingServer server) {
+    /**
+     * Create a new {@link Recorder}.
+     *
+     * @param context the main activity context
+     * @param reader the senors reader
+     * @param server the streaming server
+     */
+    Recorder(MainActivity context, SensorReader reader, StreamingServer server) {
+        this.context = context;
+        prefs = PreferenceManager.getDefaultSharedPreferences(context);
         this.sensorReader = reader;
         this.streamingServer = server;
         dataLengths = new SparseIntArray();
@@ -87,6 +101,13 @@ public class Recorder implements ServiceConnection {
 
     }
 
+    /**
+     * Pass the image data to the (data-)loggers
+     *
+     * @param data the data of the image
+     * @param timestamp the timestamp
+     * @param n the internal counter (for formatting the filename as a sequence)
+     */
     private void logImage(byte[] data, long timestamp, int n) {
         service.log(
                 folder,
@@ -97,6 +118,12 @@ public class Recorder implements ServiceConnection {
                 data, timestamp);
     }
 
+    /**
+     * Pass the data read from the sensors to the (data-)loggers
+     *
+     * @param data the data (bytes representation of a .csv string)
+     * @param timestamp the timestamp
+     */
     private void logSensors(byte[] data, long timestamp) {
         service.log(
                 folder,
@@ -105,6 +132,12 @@ public class Recorder implements ServiceConnection {
                 data, timestamp);
     }
 
+    /**
+     * Try to read a sensor data length
+     *
+     * @param sensor the sensor
+     * @return the dimensionality of its data
+     */
     private int getSensorDataLength(Sensor sensor) {
         int ret = dataLengths.get(sensor.getType());
         if (ret==0) {
@@ -114,6 +147,12 @@ public class Recorder implements ServiceConnection {
         return ret;
     }
 
+    /**
+     * Read the current sensor data (the latest available for each sensor)
+     *
+     * @param timestamp the timestamp of the reading request
+     * @return a line already formatted to write in the .csv file
+     */
     private String readSensors(int timestamp) {
         StringBuilder buffer = new StringBuilder();
         StringBuilder headers = null;
@@ -150,9 +189,25 @@ public class Recorder implements ServiceConnection {
         return buffer.append('\n').toString();
     }
 
-    public void start(MainActivity context) {
+    /**
+     * Start the streaming server in the case of remote control of the recording
+     */
+    public void startStreaming() {
+        streamingServer.setRecordingCallback(context);
+        streamingServer.start(Util.getIntPref(prefs, Util.PREF_STREAMING_PORT));
+    }
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+    /**
+     * Stop the streaming server in the case of remote control of the recording
+     */
+    public void stopStreaming() {
+        streamingServer.stop();
+    }
+
+    /**
+     * Start recording. Binds to {@link LoggingService}
+     */
+    public void start() {
 
         //basic preferences
         filenameData = prefs.getString(Util.PREF_FILENAME_DATA, "sensors.csv");
@@ -166,8 +221,7 @@ public class Recorder implements ServiceConnection {
         ext = prefs.getString(Util.PREF_CAPTURE_IMGFORMAT,".png");
         formatTimestamp = prefs.getString(Util.PREF_LOGGING_TIMESTAMP_FORMAT, "%s%07d%s");
 
-
-        //configurable sensor dimension
+        //read configurable sensors dimensions
         for (String k : prefs.getAll().keySet())
             if (k.startsWith("pref_sensor_") && k.endsWith("_length"))
                 try{
@@ -177,7 +231,6 @@ public class Recorder implements ServiceConnection {
                     Util.Log.e(TAG, "Wrong configuration: "+k, e);
                 }
 
-        this.context = context;
         counter = 0;
 
         //binding
@@ -186,17 +239,21 @@ public class Recorder implements ServiceConnection {
 
     }
 
+    /**
+     * Stop recording. Unbinds from {@link LoggingService}
+     */
     public void stop() {
-        if (stopped)
+        if (!stopped)
             return;
         stopped = true;
 
         sensorReader.stop();
+
         if (bound && counter>0)
             service.log(folder, null, LogTarget.CLOSE, null, 0);
 
         // unbinding
-        if (context!=null)
+        if (bound && context!=null)//TODO: use a weak reference...
             context.unbindService(this);
     }
 
@@ -205,7 +262,6 @@ public class Recorder implements ServiceConnection {
         Util.Log.d(TAG, "Service disconnected");
         bound = false;
         service = null;
-        context = null;
     }
 
     @Override
@@ -214,8 +270,8 @@ public class Recorder implements ServiceConnection {
         LoggingService.Binder myBinder = (LoggingService.Binder) service;
         this.service = myBinder.getService();
 
-        this.service.connect(streamingServer);
-        sensorReader.start();
+        this.service.connect(streamingServer);//connect the data-loggers (passing the streaming server if needed)
+        sensorReader.start();//start the sensor reader (it works in his own thread)
         stopped = false;
         this.bound = true;
     }
@@ -224,4 +280,5 @@ public class Recorder implements ServiceConnection {
         sensorReader.dispose();
         streamingServer.dispose();
     }
+
 }
