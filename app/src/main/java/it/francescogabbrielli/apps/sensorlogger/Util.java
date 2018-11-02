@@ -36,24 +36,25 @@ public class Util {
     public final static String PREF_FTP_USER        = "pref_ftp_user";
     public final static String PREF_FTP_PW          = "pref_ftp_pw";
     public final static String PREF_FTP_SKIP        = "pref_ftp_skip";
-    public final static String PREF_STREAMING       = "pref_streaming";
-    public final static String PREF_STREAMING_PORT  = "pref_streaming_port";
-    public final static String PREF_LOGGING_RATE    = "pref_logging_rate";
-    public final static String PREF_LOGGING_HEADERS = "pref_logging_headers";
-    public final static String PREF_LOGGING_TIME    = "pref_logging_time";
-    public final static String PREF_LOGGING_TIMESTAMP = "pref_logging_timestamp";
+    public final static String PREF_STREAMING           = "pref_streaming";
+    public final static String PREF_STREAMING_PORT      = "pref_streaming_port";
+    public final static String PREF_STREAMING_RECORD    = "pref_streaming_record";
+    public final static String PREF_LOGGING_RATE        = "pref_logging_rate";
+    public final static String PREF_LOGGING_HEADERS     = "pref_logging_headers";
+    public final static String PREF_LOGGING_TIME        = "pref_logging_time";
+    public final static String PREF_LOGGING_TIMESTAMP   = "pref_logging_timestamp";
     public final static String PREF_LOGGING_TIMESTAMP_FORMAT = "pref_logging_timestamp_format";
-    public final static String PREF_LOGGING_CHUNK   = "pref_logging_chunk";
+    public final static String PREF_LOGGING_CHUNK       = "pref_logging_chunk";
 
-    public final static String PREF_CAPTURE_CAMERA  = "pref_capture_camera";
-    public final static String PREF_CAPTURE_IMGFORMAT = "pref_capture_imgformat";
-    public final static String PREF_CAPTURE_SOUND   = "pref_capture_sound";
+    public final static String PREF_CAPTURE_CAMERA      = "pref_capture_camera";
+    public final static String PREF_CAPTURE_IMGFORMAT   = "pref_capture_imgformat";
+    public final static String PREF_CAPTURE_SOUND       = "pref_capture_sound";
 
-    public final static String EXTRA_TYPE           = "extra_type";
-    public final static String EXTRA_DATA           = "extra_data";
-    public final static String EXTRA_FILENAME       = "extra_filename";
-    public final static String EXTRA_FOLDER         = "extra_folder";
-    public final static String EXTRA_TIMESTAMP      = "extra_timestamp";
+    public final static String EXTRA_TYPE       = "extra_type";
+    public final static String EXTRA_DATA       = "extra_data";
+    public final static String EXTRA_FILENAME   = "extra_filename";
+    public final static String EXTRA_FOLDER     = "extra_folder";
+    public final static String EXTRA_TIMESTAMP  = "extra_timestamp";
 
     public final static String[] DATA_HEADERS = new String[] {
             "X", "Y", "Z", "Param1", "Param2", "Param3"

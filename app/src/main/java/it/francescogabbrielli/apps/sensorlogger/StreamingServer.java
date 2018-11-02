@@ -1,6 +1,6 @@
 package it.francescogabbrielli.apps.sensorlogger;
 
-import android.os.SystemClock;
+import android.preference.PreferenceManager;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -21,7 +21,6 @@ import java.util.Locale;
 public class StreamingServer implements Runnable {
 
     private static final String TAG = StreamingServer.class.getSimpleName();
-    private static StreamingServer instance;
 
     private static final String BOUNDARY = makeBoundary(32);
     private static final String BOUNDARY_LINE = "\r\n--" + BOUNDARY + "\r\n";
@@ -42,6 +41,8 @@ public class StreamingServer implements Runnable {
             boundary += Integer.toHexString((int) (Math.random() * 255));
         return boundary;
     }
+
+    private MainActivity main;
 
     private int port;
     private String boundaryFormat;
@@ -72,11 +73,19 @@ public class StreamingServer implements Runnable {
         }
     }
 
-    public StreamingServer() {
+    /**
+     * If the main activity is specified the recording can be started on a streaming request
+     *
+     * @param main the {@link MainActivity}
+     */
+    public StreamingServer(MainActivity main) {
         buffers = new Buffer[N_BUFFERS];
         for(int i=0;i<N_BUFFERS;i++)
             buffers[i] = new Buffer();
         currentBuffer = 0;
+        this.main = main;
+        if (main!=null)
+            start(Util.getIntPref(PreferenceManager.getDefaultSharedPreferences(main), Util.PREF_STREAMING_PORT));
     }
 
     /**
@@ -137,6 +146,8 @@ public class StreamingServer implements Runnable {
             try {
                 Util.Log.d(TAG, "Listen for incoming connections...");
                 acceptAndSStream();
+                if (main!=null)
+                    main.stopRecording(R.string.toast_recording_endofstream);
             } catch (Exception e) {
                 Util.Log.e(TAG, "Error while streaming", e);
                 try { Thread.sleep(1000); } catch (InterruptedException ie) { }
@@ -152,13 +163,16 @@ public class StreamingServer implements Runnable {
         Socket socket = null;
         DataOutputStream stream = null;
 
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
-
+        ServerSocket serverSocket = null;
+        try {
+            serverSocket = new ServerSocket(port);
             serverSocket.setSoTimeout(0);
 
             // accept connection
             do try {
                 socket = serverSocket.accept();
+                if (main!=null)
+                    main.startRecording();
                 Util.Log.d(TAG, "Connected to " + socket);
                 delayLimit = 100000000;
             } catch (final SocketTimeoutException e) {
@@ -221,6 +235,8 @@ public class StreamingServer implements Runnable {
         } catch(Throwable t) {
             Util.Log.e(TAG, "Unexpected error", t);
         } finally {
+            if (serverSocket!=null)
+                serverSocket.close();
             try {
                 if (stream!=null)
                     stream.close();
@@ -234,7 +250,7 @@ public class StreamingServer implements Runnable {
     }
 
     public void dispose() {
-
+        stop();
     }
 
 }

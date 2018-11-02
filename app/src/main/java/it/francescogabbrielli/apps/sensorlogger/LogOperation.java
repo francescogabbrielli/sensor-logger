@@ -44,9 +44,9 @@ public class LogOperation {
                 try {
                     switch (type) {
                         case LogTarget.OPEN:
-                            target.open(folder, filename, timestamp);
+                            target.open(folder, filename);
                         case LogTarget.WRITE:
-                            target.write(data);
+                            target.write(data, timestamp);
                             break;
                         case LogTarget.CLOSE:
                             target.close();
@@ -54,8 +54,8 @@ public class LogOperation {
                         case LogTarget.SEND:
                             if (target.skip())
                                 return;
-                            target.open(folder, filename, timestamp);
-                            target.write(data);
+                            target.open(folder, filename);
+                            target.write(data, timestamp);
                             target.close();
                     }
                 } catch(Exception e) {

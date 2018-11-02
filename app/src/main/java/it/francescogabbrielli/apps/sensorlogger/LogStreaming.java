@@ -25,10 +25,7 @@ public class LogStreaming extends LogTarget {
     private String imageType;
     /** The server */
     private StreamingServer server;
-    /** Current timestamp */
-    private long timestamp;
 
-    private int n;
 
     public LogStreaming(LoggingService service, SharedPreferences prefs) {
         super(service, prefs);
@@ -50,47 +47,16 @@ public class LogStreaming extends LogTarget {
     }
 
     @Override
-    public void open(String folder, String filename, long timestamp) throws IOException {
+    public void open(String folder, String filename) throws IOException {
         //overriding default stream to manage everything in the streaming server
-        this.timestamp = timestamp;
     }
 
     @Override
-    public void write(byte[] data) throws IOException {
+    public void write(byte[] data, long timestamp) throws IOException {
         String type = imageType;
-        long offset = 0;
-        if (data.length < 2000) {
+        if (data.length < 2000)
             type = "text/csv";
-            //offset = getTimeOffset(data);
-        }
-        server.stream(data, timestamp+offset, type);
-    }
-
-    /**
-     * Retrieve the time offset from sensor data
-     *
-     * @param data sensor data line
-     * @return the time offset
-     */
-    private long getTimeOffset(byte[] data) {
-        try {
-            StringBuilder buffer = new StringBuilder();
-            for (byte b : data) {
-                char c = (char) (b & 0xFF);
-                switch (c) {
-                    case '.':
-                        break;
-                    case ',':
-                        return Long.valueOf(buffer.toString())*1000000L;
-                    default:
-                        buffer.append(c);
-                }
-            }
-        } catch (Exception e) {
-            Util.Log.d(getTag(),
-                    String.format(Locale.US, "Cannot parse time from:", new String (data)));
-        }
-        return 0;
+        server.stream(data, timestamp, type);
     }
 
     @Override

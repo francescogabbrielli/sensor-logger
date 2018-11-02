@@ -11,45 +11,46 @@ import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.SparseIntArray;
 
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfDouble;
-import org.opencv.core.Range;
-
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.Locale;
-import java.util.Map;
 
 public class Recorder implements ServiceConnection {
 
     private final static String TAG = Recorder.class.getSimpleName();
 
     private final static int MAX_RECORDING_TIME = 3600000;//1h in ms
-
+    /** Format for timestamping files */
     private final static DateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd__HH_mm_ss", Locale.US);
-
+    /** MainActivity context */
     private MainActivity context;
+    /** The data-logging service */
     private LoggingService service;
+    /** Bound to service */
     private boolean bound;
 
-    private SensorReader reader;
+    /** Streaming Server */
+    private StreamingServer streamingServer;
+    /** Sensor sensorReader */
+    private SensorReader sensorReader;
 
-    private long start, duration;
+    /** Beginning of recording */
+    private long start;
+    /** Duration of each frame */
+    private long duration;
+    //flags
     private boolean flagTime, flagTimestamp, flagNetwork, flagHeaders, stopped;
+    //filename structure
     private String filenameData, filenameFrame, folder, ext, formatTimestamp;
+    /** Internal counter */
     private int counter;
-
-    /** 3d sensors axes rotation */
-    private Mat rotation;
-
+    /** Lengths of each sensor data */
     private final SparseIntArray dataLengths;
 
-    Recorder(SensorReader reader) {
-        this.reader = reader;
+    Recorder(SensorReader reader, StreamingServer server) {
+        this.sensorReader = reader;
+        this.streamingServer = server;
         dataLengths = new SparseIntArray();
     }
 
@@ -61,34 +62,32 @@ public class Recorder implements ServiceConnection {
      */
     public void record(byte[] data, long timestamp) {
 
-        if (stopped)
+        if (stopped || !bound)
             return;
 
         if (counter==0)
             start = timestamp;
 
         long max = timestamp-start+duration/2;
-        if (max > MAX_RECORDING_TIME * 1000000L) {
-            context.stopRecording(R.string.toast_recording_offlimits);
-            return;
-        }
+//        if (max > MAX_RECORDING_TIME * 1000000L) {
+//            context.stopRecording(R.string.toast_recording_offlimits);
+//            return;
+//        }
 
         //log precise frames and fill in missing frames, if any
-        for (long time = counter*duration; time < max; time+=duration) {
+        for (long time = counter*duration; time<max; time+=duration) {
             byte[] sensorsData = readSensors((int)(time/1000000L)).getBytes();
-            logSensors(sensorsData, timestamp);
+            logSensors(sensorsData, time);
             if (data != null)
-                logImage(data, timestamp, counter);
+                logImage(data, time, counter);
             else
-                Util.Log.d(TAG, "No image!");
+                Util.Log.w(TAG, "No image!");
             counter++;
         }
 
     }
 
     private void logImage(byte[] data, long timestamp, int n) {
-        if (!bound)
-            return;
         service.log(
                 folder,
                 flagTimestamp
@@ -99,8 +98,6 @@ public class Recorder implements ServiceConnection {
     }
 
     private void logSensors(byte[] data, long timestamp) {
-        if (!bound)
-            return;
         service.log(
                 folder,
                 filenameData,
@@ -129,10 +126,8 @@ public class Recorder implements ServiceConnection {
             buffer.append(String.valueOf(timestamp));
             buffer.append(",");
         }
-        for (SensorEvent e : reader) {//iterate through accelerometer and gyroscope (and magnetometer, etc)
+        for (SensorEvent e : sensorReader) {//iterate through accelerometer and gyroscope (and magnetometer, etc)
             int l = Math.min(e.values.length, getSensorDataLength(e.sensor));
-            if (l==3 && rotation!=null)
-                applyRotation(e.values);
             for (int i = 0; i < l; i++) {//iterate through x, y, z (and what else... if a sensor has more than 3 values)
                 if (flagHeaders && counter==0) {
                     headers.append(Util.getSensorName(e.sensor));
@@ -171,12 +166,6 @@ public class Recorder implements ServiceConnection {
         ext = prefs.getString(Util.PREF_CAPTURE_IMGFORMAT,".png");
         formatTimestamp = prefs.getString(Util.PREF_LOGGING_TIMESTAMP_FORMAT, "%s%07d%s");
 
-        //axes rotation
-        double theta = Util.getDoublePref(prefs, Util.PREF_SENSORS_THETA);
-        double phi = Util.getDoublePref(prefs, Util.PREF_SENSORS_PHI);
-        rotation = null;
-        if (theta!=0 || phi!=0)
-            createRotation(theta, phi);
 
         //configurable sensor dimension
         for (String k : prefs.getAll().keySet())
@@ -194,8 +183,7 @@ public class Recorder implements ServiceConnection {
         //binding
         context.bindService(new Intent(context, LoggingService.class), this, Context.BIND_AUTO_CREATE);
 
-        reader.start();
-        stopped = false;
+
     }
 
     public void stop() {
@@ -203,7 +191,7 @@ public class Recorder implements ServiceConnection {
             return;
         stopped = true;
 
-        reader.stop();
+        sensorReader.stop();
         if (bound && counter>0)
             service.log(folder, null, LogTarget.CLOSE, null, 0);
 
@@ -214,6 +202,7 @@ public class Recorder implements ServiceConnection {
 
     @Override
     public void onServiceDisconnected(ComponentName name) {
+        Util.Log.d(TAG, "Service disconnected");
         bound = false;
         service = null;
         context = null;
@@ -221,33 +210,18 @@ public class Recorder implements ServiceConnection {
 
     @Override
     public void onServiceConnected(ComponentName name, IBinder service) {
+        Util.Log.d(TAG, "Service connected");
         LoggingService.Binder myBinder = (LoggingService.Binder) service;
         this.service = myBinder.getService();
+
+        this.service.connect(streamingServer);
+        sensorReader.start();
+        stopped = false;
         this.bound = true;
     }
 
-    private void createRotation(double theta, double phi) {
-        rotation = new Mat(3,3, CvType.CV_32F);
-        rotation.put(0,0,0);
-        rotation.put(0,1,0);
-        rotation.put(0,2,0);
-        rotation.put(1,0,0);
-        rotation.put(1,1,0);
-        rotation.put(1,2,0);
-        rotation.put(2,0,0);
-        rotation.put(2,1,0);
-        rotation.put(2,2,0);
+    public void dispose() {
+        sensorReader.dispose();
+        streamingServer.dispose();
     }
-
-    private void applyRotation(float[] values) {
-        Mat v = new Mat(1,3, CvType.CV_32F);
-        v.put(0,0, values[0]);
-        v.put(1,0, values[1]);
-        v.put(2,0, values[2]);
-        Mat res = rotation.mul(v);
-        values[0] = (float) res.get(0,0)[0];
-        values[1] = (float) res.get(0,0)[1];
-        values[2] = (float) res.get(0,0)[2];
-    }
-
 }

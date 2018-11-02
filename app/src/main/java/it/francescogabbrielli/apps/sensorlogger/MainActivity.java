@@ -1,6 +1,7 @@
 package it.francescogabbrielli.apps.sensorlogger;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -20,6 +21,7 @@ import android.support.v7.widget.Toolbar;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
@@ -65,9 +67,11 @@ public class MainActivity extends AppCompatActivity implements
     private long timestamp, frameDuration;
     private String imgFormat;
 
+    private BroadcastReceiver controlReceiver;
+
     @Override
     public void onManagerConnected(int status) {
-        Util.Log.v(TAG, "OpenCV status:" +status);
+        Util.Log.d(TAG, "OpenCV status:" +status);
         switch (status) {
             case LoaderCallbackInterface.SUCCESS:
                 verifyPermissions();
@@ -77,13 +81,12 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onPackageInstall(int operation, InstallCallbackInterface callback) {
-        Util.Log.v(TAG, "OpenCV install:" +operation);
+        Util.Log.d(TAG, "OpenCV install:" +operation);
         switch (operation) {
             case InstallCallbackInterface.NEW_INSTALLATION:
                 callback.install();
                 break;
         }
-        //callback.install();
     }
 
     @Override
@@ -98,8 +101,6 @@ public class MainActivity extends AppCompatActivity implements
         setSupportActionBar(toolbar);
 
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        recorder = new Recorder(
-                new SensorReader((SensorManager) getSystemService(SENSOR_SERVICE), prefs));
 
         //start the service
         startService(new Intent(this, LoggingService.class));
@@ -118,9 +119,16 @@ public class MainActivity extends AppCompatActivity implements
         imgFormat = prefs.getString(Util.PREF_CAPTURE_IMGFORMAT, ".png");
     }
 
+    private long tResume;
+
     @Override
     protected void onResume() {
         super.onResume();
+
+        recorder = new Recorder(
+                new SensorReader((SensorManager) getSystemService(SENSOR_SERVICE), prefs),
+                new StreamingServer(Util.getIntPref(prefs, Util.PREF_STREAMING)>0
+                        && prefs.getBoolean(Util.PREF_STREAMING_RECORD, false) ? this : null));
 
         if (!OpenCVLoader.initDebug()) {
             Util.Log.d("OpenCV", "Internal OpenCV library not found. Using OpenCV Manager for initialization");
@@ -130,19 +138,24 @@ public class MainActivity extends AppCompatActivity implements
             onManagerConnected(LoaderCallbackInterface.SUCCESS);
         }
 
-        Util.Log.d(TAG, "onResume");
+        Util.Log.v(TAG, "onResume");
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        tResume = SystemClock.elapsedRealtime();
     }
 
     @Override
     protected void onPause() {
-        Util.Log.d(TAG, "onPause");
-        stopRecording(R.string.toast_recording_interrupted);
-        if (camera != null)
-            camera.disableView();
-        if (toneGenerator!=null)
-            toneGenerator.release();
-        toneGenerator = null;
+        if (SystemClock.elapsedRealtime()-tResume>100) {
+            Util.Log.v(TAG, "onPause");
+            stopRecording(R.string.toast_recording_interrupted);
+            if (camera != null)
+                camera.disableView();
+            if (toneGenerator != null)
+                toneGenerator.release();
+            toneGenerator = null;
+            recorder.dispose();
+        } else
+            Util.Log.w(TAG, "Pause called after resume?");
         super.onPause();
     }
 
@@ -172,29 +185,50 @@ public class MainActivity extends AppCompatActivity implements
     //<editor-fold desc="Start/Stop management">
     // --------------------------------- START / STOP MANAGEMENT  ----------------------------------
     //
+
     private boolean recPressed, recording;
     private long lastPressed;
 
     @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if(event.getAction() == MotionEvent.ACTION_DOWN){
+            event.setAction(MotionEvent.ACTION_BUTTON_RELEASE);
+            return onTrackballEvent(event);
+        }
+        return super.onTouchEvent(event);
+    }
+
+    @Override
+    public boolean onTrackballEvent(MotionEvent event) {
+        if(event.getAction() == MotionEvent.ACTION_BUTTON_RELEASE) {
+            recPressed();
+            //return true;
+        }
+        return super.onTrackballEvent(event);
+    }
+
+    @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (SystemClock.elapsedRealtime()-lastPressed>750)
-            if (keyCode==KeyEvent.KEYCODE_VOLUME_DOWN || keyCode==KeyEvent.KEYCODE_VOLUME_UP ) {
-                lastPressed = SystemClock.elapsedRealtime();
-                AudioManager mgr = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-                if (!recPressed) {
-                    recPressed = true;
-                    mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
-                    showPrepareAnimation();
-                } else {
-                    mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
-                    stopRecording(R.string.toast_recording_stop);
-//                    // restart preview ???
-//                    if (cameraHandlerThread != null)
-//                        cameraHandlerThread.restart();
-                }
-                return true;
+        if (keyCode==KeyEvent.KEYCODE_VOLUME_DOWN || keyCode==KeyEvent.KEYCODE_VOLUME_UP ) {
+            recPressed();
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    private void recPressed() {
+        if (SystemClock.elapsedRealtime()-lastPressed>750) {
+            lastPressed = SystemClock.elapsedRealtime();
+            AudioManager mgr = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (!recPressed) {
+                recPressed = true;
+                mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
+                showPrepareAnimation();
+            } else {
+                mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
+                stopRecording(R.string.toast_recording_stop);
             }
-        return super.onKeyDown(keyCode,event);
+        }
     }
 
     private ScheduledExecutorService animExec;
@@ -221,12 +255,7 @@ public class MainActivity extends AppCompatActivity implements
                             t.setText(String.valueOf(val));
                             showPrepareAnimation();
                         } else {
-                            if (toneGenerator!=null)
-                                toneGenerator.startTone(ToneGenerator.TONE_CDMA_PIP, 300);
-                            recording = true;
-                            recorder.start(MainActivity.this);
-                            hidePrepareAnimation();
-                            showBlinkingAnimation();
+                            startRecording();
                         }
                     }
                 });
@@ -256,7 +285,6 @@ public class MainActivity extends AppCompatActivity implements
                 });
             }
         }, 0, 500, TimeUnit.MILLISECONDS);
-
     }
 
     private void hideBlinkingAnimation() {
@@ -272,17 +300,26 @@ public class MainActivity extends AppCompatActivity implements
                     public void run() {
                         ImageView i = findViewById(R.id.img_record);
                         i.setVisibility(View.INVISIBLE);
-                        if (toneGenerator!=null)
-                            toneGenerator.startTone(ToneGenerator.TONE_CDMA_CONFIRM, 300);
                     }
                 });
             }
         }, 0, TimeUnit.SECONDS);
     }
 
+    void startRecording() {
+        if (toneGenerator!=null)
+            toneGenerator.startTone(ToneGenerator.TONE_CDMA_PIP, 300);
+        recording = true;
+        recorder.start(MainActivity.this);
+        hidePrepareAnimation();
+        showBlinkingAnimation();
+    }
+
     void stopRecording(int msg) {
-        if (recPressed)
+        if (recording || recPressed)
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+        if (toneGenerator!=null)
+            toneGenerator.startTone(ToneGenerator.TONE_CDMA_CONFIRM, 300);
         recPressed = false;
         recording = false;
         recorder.stop();

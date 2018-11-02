@@ -38,6 +38,14 @@ public abstract class LogTarget {
         handler = new Handler(thread.getLooper());
     }
 
+    public static <T extends LogTarget> T newInstance(Class<T> loggerClass,
+                                                      LoggingService service,
+                                                      SharedPreferences prefs) throws Exception {
+        return loggerClass
+                .getConstructor(LoggingService.class, SharedPreferences.class)
+                .newInstance(service, prefs);
+    }
+
     /**
      * Post a generic task in the thread managed by this class.
      * @see LogOperation for a more specific task
@@ -49,6 +57,7 @@ public abstract class LogTarget {
 
     /**
      * Check if this thread is running any operation/task
+     *
      * @return if is running anything
      */
     public boolean isRunning() {
@@ -77,10 +86,9 @@ public abstract class LogTarget {
      *
      * @param folder the recording folder
      * @param filename the filename to log to
-     * @param timestamp
      * @throws IOException
      */
-    public void open(String folder, String filename, long timestamp) throws IOException {
+    public void open(String folder, String filename) throws IOException {
         out = openOutputStream(folder, filename);
         if (out==null) {
             Util.Log.w(getTag(), "Cannot create or access file "+filename);
@@ -92,9 +100,10 @@ public abstract class LogTarget {
      * Log data to current file
      *
      * @param data bytes to write
+     * @param timestamp
      * @throws IOException
      */
-    public void write(byte[] data) throws IOException {
+    public void write(byte[] data, long timestamp) throws IOException {
         out.write(data);
     }
 
@@ -114,6 +123,9 @@ public abstract class LogTarget {
      */
     public abstract void disconnect() throws IOException;
 
+    /**
+     *
+     */
     public void dispose() {
         thread.quitSafely();
         handler = null;
@@ -124,8 +136,13 @@ public abstract class LogTarget {
         return getClass().getSimpleName();
     }
 
-
+    /**
+     * If to skip SEND action
+     *
+     * @return
+     */
     public boolean skip() {
         return false;
     }
+
 }

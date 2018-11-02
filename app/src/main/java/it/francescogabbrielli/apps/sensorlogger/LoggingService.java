@@ -11,6 +11,7 @@ import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -26,13 +27,13 @@ public class LoggingService extends Service {
 
     private final static String TAG = LoggingService.class.getSimpleName();
 
-    public static final String ACTION_START = "it.francescogabbrielli.apps.sensorlogger.action.START_SERVICE";
-    public static final String ACTION_STOP  = "it.francescogabbrielli.apps.sensorlogger.action.STOP_SERVICE";
+    public static final String ACTION_START = "it.francescogabbrielli.apps.sensorlogger.action.START";
+    public static final String ACTION_STOP  = "it.francescogabbrielli.apps.sensorlogger.action.STOP";
 
     private IBinder binder = new Binder();
 
     /** Loggers */
-    private final List<LogTarget> dataLoggers, imageLoggers;
+    private final List<LogTarget> loggers, dataLoggers, imageLoggers;
 
     /** App preferences */
     private SharedPreferences prefs;
@@ -54,6 +55,7 @@ public class LoggingService extends Service {
     }
 
     public LoggingService() {
+        loggers = new LinkedList<>();
         imageLoggers = new LinkedList<>();
         dataLoggers = new LinkedList<>();
     }
@@ -84,14 +86,12 @@ public class LoggingService extends Service {
     @Override
     public IBinder onBind(Intent intent) {//Bound Service
         Util.Log.v(TAG, "in onBind");
-        connect();
         return binder;
     }
 
     @Override
     public void onRebind(Intent intent) {
         Util.Log.v(TAG, "in onRebind");
-        connect();
         super.onRebind(intent);
     }
 
@@ -129,6 +129,24 @@ public class LoggingService extends Service {
         super.onDestroy();
     }
 
+    public StreamingServer getStreamingServer() {
+        return streamingServer;
+    }
+
+    private LogTarget getLogger(Class<? extends LogTarget> loggerClass) throws Exception {
+        int found = -1;
+        for (int i=0;found<0 && i<loggers.size();i++)
+            if (loggers.get(i).getClass().equals(loggerClass))
+               found = i;
+        if (!loggerClass.equals(LogStreaming.class) || found<0) {
+            LogTarget t = LogTarget.newInstance(loggerClass, this, prefs);
+            loggers.add(t);
+            Util.Log.i(TAG, "New Logger: " + loggerClass.getSimpleName());
+            return t;
+        } else
+            return loggers.get(found);
+    }
+
     /**
      * Instantiate new loggers based on preferences
      *
@@ -139,17 +157,31 @@ public class LoggingService extends Service {
      */
     private List<LogTarget> newLoggers(int mask) {
 
-        // create targets based on preferences
+        // create targets based on preferences (TODO: generalize)
         List<LogTarget> ret = new LinkedList<>();
         if ((Util.getIntPref(prefs, Util.PREF_FILE) & mask)==mask)
-            ret.add(new LogFile(this, prefs));
+            try {ret.add(getLogger(LogFile.class));}
+            catch (Exception e) {Util.Log.e(TAG, "Wrong file logger class", e);}
         if ((Util.getIntPref(prefs, Util.PREF_FTP) & mask)==mask)
-            ret.add(new LogFtp(this, prefs));
+            try {ret.add(getLogger(LogFtp.class));}
+            catch (Exception e) {Util.Log.e(TAG, "Wrong ftp logger class", e);}
         if ((Util.getIntPref(prefs, Util.PREF_STREAMING) & mask)==mask)
-            ret.add(new LogStreaming(this, prefs));
+            try {ret.add(getLogger(LogStreaming.class));}
+            catch (Exception e) {Util.Log.e(TAG, "Wrong streamin logger class", e);}
+
+        return ret;
+    }
+
+    void connect(StreamingServer server) {
+        this.streamingServer = server;
+        loggers.clear();
+        imageLoggers.clear();
+        imageLoggers.addAll(newLoggers(Util.LOG_IMAGE));
+        dataLoggers.clear();
+        dataLoggers.addAll(newLoggers(Util.LOG_DATA));
 
         // connect targets as soon are they are created
-        for (final Iterator<LogTarget> it = ret.iterator(); it.hasNext() ; ) {
+        for (final Iterator<LogTarget> it = loggers.iterator(); it.hasNext(); ) {
             final LogTarget t = it.next();
             t.post(new Runnable() {
                 @Override
@@ -163,34 +195,10 @@ public class LoggingService extends Service {
                 }
             });
         }
-
-        return ret;
     }
 
-    StreamingServer getStreamingServer() {
-        if (streamingServer==null)
-            streamingServer = new StreamingServer();
-        return streamingServer;
-    }
-
-    private void connect() {
-        imageLoggers.clear();
-        imageLoggers.addAll(newLoggers(Util.LOG_IMAGE));
-        dataLoggers.clear();
-        dataLoggers.addAll(newLoggers(Util.LOG_DATA));
-    }
-
-    private void disconnect() {
-        for (final LogTarget t : imageLoggers)
-            t.post(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        t.disconnect();
-                    } catch(Exception e) {}
-                }
-            });
-        for (final LogTarget t : dataLoggers)
+    void disconnect() {
+        for (final LogTarget t : loggers)
             t.post(new Runnable() {
                 @Override
                 public void run() {
@@ -220,7 +228,6 @@ public class LoggingService extends Service {
                 operate.on(t);
         }
     }
-
 
     /**
      * Handle action START in the provided background thread with the provided
