@@ -8,7 +8,7 @@ class SensorData:
         self.dimension = dimension
         self.len = len
         if data is None:
-            data = [[i] * len for i in range(0, dimension)]
+            data = [[0] * len for i in range(0, dimension)]
         self.data = data
 
     def getdata(self):
@@ -23,6 +23,7 @@ class SensorData:
 
     def __copy__(self):
         return SensorData(self.len, self.dimension, self.data[:])
+
 
 class Buffer:
 

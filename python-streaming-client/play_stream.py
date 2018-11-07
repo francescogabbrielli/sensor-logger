@@ -58,7 +58,7 @@ def show(buffer):
 
 
 # Create stream client
-s = StreamClient("192.168.1.2", 8080)
+s = StreamClient("192.168.1.3", 8080)
 sb = StreamBuffer(DATA_LEN)
 
 
@@ -80,9 +80,11 @@ def display():
 def streaming_callback(timestamp, type, data):
     global currentIndex, frame
     if type=="image":
+        print timestamp
         sb.updateImage(data)
     elif type:
         try:
+            print timestamp, data.rstrip()
             readings = data.rstrip().split(",")
             timestamps[currentIndex] = int(readings[0])
             sb.updateData(currentIndex, readings[1:4])

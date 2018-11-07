@@ -51,17 +51,19 @@ class StreamClient:
         The reading thread
         """
         print ("START")
+        start = -1
+        restart = StreamClient.BUFFER_SIZE-StreamClient.CHUNK_SIZE
         d = self.r.read(StreamClient.CHUNK_SIZE)
         while d:
             self.buffer = self.buffer[StreamClient.CHUNK_SIZE:]+d
             self.last_update = time()
-            start = self.buffer.find(self.boundary)
-            end = self.buffer.find(self.boundary, start+1)
+            if start<0:
+                start = self.buffer.find(self.boundary, restart)
+            end = self.buffer.find(self.boundary, start+self.blen)
             while start<end:
                 all = self.buffer[start+self.blen:end]
                 headers_len = all.find("\r\n\r\n") + 4
                 headers = all[:headers_len]
-                # print headers
                 try:
                     content_type = self.re_type.match(headers).group(1)
                     timestamp = self.re_timestamp.match(headers).group(1)
@@ -69,13 +71,9 @@ class StreamClient:
                     self.callback(timestamp, content_type, all[headers_len:headers_len+l+1])
                 except Exception as e:
                     print e
-                    #print ("ERROR CONTENT TYPE: %s" % headers)
-                timestamp = -1
-                #try:
-                # l = int(self.re_length.match(headers).group(1))
-                #finally:
-                # print (all[:min(128,end)])
-                # print "--------------------------------------------------"
+                    print ("ERROR CONTENT TYPE: %d" % headers_len)
                 start = end
-                end = self.buffer.find(self.boundary, start+1)
+                end = self.buffer.find(self.boundary, start+self.blen)
             d = self.r.read(StreamClient.CHUNK_SIZE)
+            start -= StreamClient.CHUNK_SIZE
+            restart = max(0, start, restart-StreamClient.CHUNK_SIZE)
