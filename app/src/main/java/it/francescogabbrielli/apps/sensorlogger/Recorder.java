@@ -120,8 +120,8 @@ public class Recorder implements ServiceConnection {
 
         //log precise frames and fill in missing frames, if any
         for (long time = counter*duration; time<max; time+=duration) {
-            byte[] sensorsData = readSensors((int)(time/1000000L)).getBytes();
-            logSensors(sensorsData, time);
+            byte[] sensorsData = readSensors((int) (time/1000000L)).getBytes();
+            logSensors(sensorsData, time);//or maybe the real sensors timestamp
             if (data != null)
                 logImage(data, time, counter);
             else

@@ -11,9 +11,6 @@ import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.SparseArray;
 
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.TreeSet;
@@ -72,12 +69,6 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
             Handler handler = new Handler(ht.getLooper());
             for (Sensor s : sensors)
                 sensorManager.registerListener(this, s, SensorManager.SENSOR_DELAY_FASTEST, handler);
-            //axes rotation
-//            double theta = Util.getDoublePref(prefs, Util.PREF_SENSORS_THETA);
-//            double phi = Util.getDoublePref(prefs, Util.PREF_SENSORS_PHI);
-//            rotation = null;
-//            if (theta!=0 || phi!=0)
-//                createRotation(theta, phi);
         }
     }
 

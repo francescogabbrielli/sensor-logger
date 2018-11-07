@@ -23,6 +23,8 @@ public class StreamingServer implements Runnable {
 
     private static final String TAG = StreamingServer.class.getSimpleName();
 
+    private static final long DELAY_LIMIT = 100000000L;
+
     /** A new random boundary */
     private static final String BOUNDARY = makeBoundary(32);
     /** Boundary line to separate parts in the stream */
@@ -212,7 +214,7 @@ public class StreamingServer implements Runnable {
             do try {
                 socket = serverSocket.accept();
                 Util.Log.d(TAG, "Connected to " + socket);
-                delayLimit = 100000000;
+                delayLimit = DELAY_LIMIT;
 
                 // start recording automatically if set
                 if (main!=null) {
@@ -242,7 +244,7 @@ public class StreamingServer implements Runnable {
             serverSocket.close();
             stream = new DataOutputStream(socket.getOutputStream());
             stream.writeBytes(HTTP_HEADER);
-
+            Util.Log.d(TAG, HTTP_HEADER);
             int toFlush = HTTP_HEADER.length();
 
             // stream current data
@@ -266,9 +268,13 @@ public class StreamingServer implements Runnable {
                     newData = false;
                 }
 
-                if (SystemClock.elapsedRealtime() - buffer.timestamp > delayLimit) {
-                    Util.Log.i(TAG, "Streaming is delayed by > " + delayLimit + "ns");
+                long delay = SystemClock.elapsedRealtime() - buffer.timestamp;
+                if (delay > delayLimit) {
+                    Util.Log.i(TAG, "Streaming is delayed by " + delay/1000000L + "ms");
                     delayLimit *= 2;
+                } else if (delay > DELAY_LIMIT) {
+                    Util.Log.i(TAG, "Streaming is delayed by " + delay/1000000L + "ms");
+                    delayLimit /= 2;
                 }
 
                 stream.writeBytes(BOUNDARY_LINE);

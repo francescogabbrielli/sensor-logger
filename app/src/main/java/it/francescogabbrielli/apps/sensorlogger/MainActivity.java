@@ -2,7 +2,6 @@ package it.francescogabbrielli.apps.sensorlogger;
 
 import android.Manifest;
 import android.annotation.TargetApi;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -13,6 +12,7 @@ import android.media.AudioManager;
 import android.media.ToneGenerator;
 import android.os.Build;
 import android.os.Environment;
+import android.os.PowerManager;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
@@ -69,8 +69,6 @@ public class MainActivity extends AppCompatActivity implements
     private long timestamp, frameDuration;
     private String imgFormat;
 
-    private BroadcastReceiver controlReceiver;
-
     @Override
     public void onManagerConnected(int status) {
         Util.Log.d(TAG, "OpenCV status:" +status);
@@ -115,7 +113,7 @@ public class MainActivity extends AppCompatActivity implements
     /**
      * Setup the camera; can be called anytime
      */
-    private void setupCamera() {
+    private void onSetupCamera() {
         camera = findViewById(R.id.camera_view);
         camera.setVisibility(SurfaceView.VISIBLE);
         camera.setCvCameraViewListener(this);
@@ -124,51 +122,67 @@ public class MainActivity extends AppCompatActivity implements
         imgFormat = prefs.getString(Util.PREF_CAPTURE_IMGFORMAT, ".png");
     }
 
-    private long tResume;
+    private boolean goodPause = true, goodResume = false;
+
+    @Override
+    protected void onStart() {
+
+        super.onStart();
+
+        if (!OpenCVLoader.initDebug()) {
+            Util.Log.d("OpenCV", "Internal OpenCV library not found. Using OpenCV Manager for initialization");
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_2_0, this, this);
+        } else {
+            Util.Log.d("OpenCV", "OpenCV library found inside package. Using it!");
+            onManagerConnected(LoaderCallbackInterface.SUCCESS);
+        }
+
+        goodPause = true;
+    }
 
     @Override
     protected void onResume() {
 
         super.onResume();
 
-        //make the streaming server listen for connections
+        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+        goodResume = pm!=null && pm.isInteractive();
+        Util.Log.v(TAG, "onResume: "+goodResume);
+
+        if (!goodResume || !goodPause)
+            return;
+
         if (Util.getIntPref(prefs, Util.PREF_STREAMING)>0 && prefs.getBoolean(Util.PREF_STREAMING_RECORD, false))
             recorder.startStreaming();
 
-        if (!OpenCVLoader.initDebug()) {
-            Util.Log.d("OpenCV", "Internal OpenCV library not found. Using OpenCV Manager for initialization");
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, this);
-        } else {
-            Util.Log.d("OpenCV", "OpenCV library found inside package. Using it!");
-            onManagerConnected(LoaderCallbackInterface.SUCCESS);
-        }
-
-        Util.Log.v(TAG, "onResume");
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-        tResume = SystemClock.elapsedRealtime();
+
     }
 
     @Override
     protected void onPause() {
 
-        if (SystemClock.elapsedRealtime()-tResume>250) {
-
-            Util.Log.v(TAG, "onPause");
-
-            //make the streaming server listen for connections
-            if (Util.getIntPref(prefs, Util.PREF_STREAMING)>0 && prefs.getBoolean(Util.PREF_STREAMING_RECORD, false))
-                recorder.stopStreaming();
-
-            if (camera != null)
-                camera.disableView();
-            if (toneGenerator != null)
-                toneGenerator.release();
-            toneGenerator = null;
-
-        } else
-            Util.Log.w(TAG, "Pause called after resume?");
+        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+        goodPause = pm!=null && !pm.isInteractive();
+        Util.Log.v(TAG, "onPause: "+goodPause);
 
         super.onPause();
+
+        if (!goodResume || !goodPause)
+            return;
+
+        //stop the streaming server
+        if (Util.getIntPref(prefs, Util.PREF_STREAMING) > 0 && prefs.getBoolean(Util.PREF_STREAMING_RECORD, false))
+            recorder.stopStreaming();
+
+        stopRecording(R.string.toast_recording_interrupted);
+
+        if (camera != null)
+            camera.disableView();
+        if (toneGenerator != null)
+            toneGenerator.release();
+        toneGenerator = null;
+
     }
 
     @Override
@@ -215,7 +229,7 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public boolean onTrackballEvent(MotionEvent event) {
         if(event.getAction() == MotionEvent.ACTION_BUTTON_RELEASE) {
-            recPressed();
+            onRecPressed();
             //return true;
         }
         return super.onTrackballEvent(event);
@@ -224,13 +238,13 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode==KeyEvent.KEYCODE_VOLUME_DOWN || keyCode==KeyEvent.KEYCODE_VOLUME_UP) {
-            recPressed();
+            onRecPressed();
             return true;
         }
         return super.onKeyDown(keyCode, event);
     }
 
-    private void recPressed() {
+    private void onRecPressed() {
         if (SystemClock.elapsedRealtime()-lastPressed>750) {
             lastPressed = SystemClock.elapsedRealtime();
             AudioManager mgr = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
@@ -262,7 +276,7 @@ public class MainActivity extends AppCompatActivity implements
         if (animExec==null)
             animExec = Executors.newSingleThreadScheduledExecutor();
         try {
-            prepareFuture = animExec.schedule(new Runnable() {
+            prepareFuture = animExec.scheduleAtFixedRate(new Runnable() {
                 @Override
                 public void run() {
                     runOnUiThread(new Runnable() {
@@ -274,21 +288,20 @@ public class MainActivity extends AppCompatActivity implements
                             if (--val>0) {
                                 startTone(ToneGenerator.TONE_CDMA_PIP, 150);
                                 t.setText(String.valueOf(val));
-                                showPrepareAnimation();
                             } else {
                                 startRecording();
                             }
                         }
                     });
                 }
-            }, 1, TimeUnit.SECONDS);
+            },0,1, TimeUnit.SECONDS);
         } catch(Exception e) {
             Util.Log.e(TAG, "Cannot start prepare animation", e);
         }
     }
     private void hidePrepareAnimation() {
         if (prepareFuture !=null)
-            prepareFuture.cancel(true);
+            prepareFuture.cancel(false);
         TextView t = findViewById(R.id.anim_prepare);
         t.setText("");
     }
@@ -319,7 +332,7 @@ public class MainActivity extends AppCompatActivity implements
         if (animExec==null)
             animExec = Executors.newSingleThreadScheduledExecutor();
         if (recordingFuture!=null)
-            recordingFuture.cancel(true);
+            recordingFuture.cancel(false);
         try {
             animExec.schedule(new Runnable() {
                 @Override
@@ -334,21 +347,29 @@ public class MainActivity extends AppCompatActivity implements
                 }
             }, 0, TimeUnit.SECONDS);
         } catch(Exception e) {
-            Util.Log.e(TAG, "Cannot stop rec animation", e);
+            Util.Log.e(TAG, String.format(Locale.US,
+                    "Cannot stop rec animation [SHUTDOWN: %s, TERMINATED: %s]",
+                    animExec.isShutdown(), animExec.isTerminated()), e);
         }
     }
 
+    /** Start recording: must be called on UI thread */
     void startRecording() {
+        if (recording)
+            return;
         startTone(ToneGenerator.TONE_CDMA_PIP, 300);
+        recPressed = true;
         recording = true;
         recorder.start();
         hidePrepareAnimation();
         showBlinkingAnimation();
     }
 
+    /** Stop recording: must be called on UI thread */
     void stopRecording(int msg) {
-        if (recording || recPressed)
-            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+        if (!recording && !recPressed)
+            return;
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
         startTone(ToneGenerator.TONE_CDMA_CONFIRM, 300);
         recPressed = false;
         recording = false;
@@ -362,7 +383,9 @@ public class MainActivity extends AppCompatActivity implements
 
     //<editor-fold desc="Permissions">
     // ----------------------------------- PERMISSIONS MANAGEMENT ----------------------------------
-    //-
+    //
+    private boolean requestingPermissions = false;
+
     /**
      * Checks if the app has the required permissions, as per current setttings.
      * <p>
@@ -384,15 +407,16 @@ public class MainActivity extends AppCompatActivity implements
             String permission = it.next();
             int check = ActivityCompat.checkSelfPermission(this, permission);
             if (check != PackageManager.PERMISSION_GRANTED) {
-                onPermissionDenied(permission);
+                //do nothing
             } else {
-                it.remove();
                 onPermissionOk(permission);
+                it.remove();
             }
         }
 
         // Request missing permissions
-        if (!requests.isEmpty()) {
+        if (!requestingPermissions &&  !requests.isEmpty()) {
+            requestingPermissions = true;
             // We don't have permission so prompt the user
             ActivityCompat.requestPermissions(this,
                     requests.toArray(new String[0]),
@@ -404,6 +428,7 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        requestingPermissions = false;
         switch (requestCode) {
             case REQUEST_PERMISSIONS:
                 for (int i = 0; i < grantResults.length; i++)
@@ -421,7 +446,7 @@ public class MainActivity extends AppCompatActivity implements
     protected void onPermissionOk(String permission) {
         Util.Log.d(TAG, "Permission ok: " + permission);
         if (Manifest.permission.CAMERA.equals(permission)) {
-            setupCamera();
+            onSetupCamera();
         } else if (Manifest.permission.WRITE_EXTERNAL_STORAGE.equals(permission)) {
             File dir = new File(Environment.getExternalStorageDirectory(),
                     getString(R.string.app_folder));
@@ -504,7 +529,7 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public Mat onCameraFrame(final Mat inputFrame) {
         final long t = SystemClock.elapsedRealtimeNanos();
-        fps(t);//compute fps and show on screen
+        fps(t);//compute fps and show em on screen
         if (recording && t-timestamp >= frameDuration) {// check if enough time is passed to record the next frame (during recording)
             frameExec.execute(new Runnable() {
                 @Override

@@ -227,7 +227,7 @@ public class LoggingService extends Service {
     }
 
     /**
-     * Handle action START in the provided background thread with the provided
+     * Handle action START in the provided background thread with the provided data
      */
     private void handleStart(final Bundle extras) {
         int type = extras.getInt(Util.EXTRA_TYPE);
@@ -239,7 +239,7 @@ public class LoggingService extends Service {
 
     /**
      * Handle action STOP in the provided background thread with the provided
-     * parameters.
+     * data.
      */
     private void handleStop(Bundle extras) {
         handler.post(new Runnable() {
