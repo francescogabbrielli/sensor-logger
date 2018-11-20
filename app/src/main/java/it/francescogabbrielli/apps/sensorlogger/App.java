@@ -7,7 +7,7 @@ public class App extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        Util.loadDefaults(this);
+        Util.loadDefaults(this, false);
     }
 
 }

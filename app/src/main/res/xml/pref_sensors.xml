@@ -1,20 +1,33 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- NOTE: Hide buttons to simplify the UI. Users can touch outside the dialog to
-         dismiss it. .
-    <ListPreference
-        android:defaultValue="180"
-        android:entries="@array/pref_sync_frequency_titles"
-        android:entryValues="@array/pref_sync_frequency_values"
-        android:key="sync_frequency"
-        android:negativeButtonText="@null"
-        android:positiveButtonText="@null"
-        android:title="@string/pref_title_sync_frequency" />
+    <PreferenceCategory android:title="@string/pref_rotations_header">
+        <ListPreference
+            android:key="pref_rotation_x"
+            android:entries="@array/pref_rotation_list_titles"
+            android:entryValues="@array/pref_rotation_list_values"
+            android:negativeButtonText="@null"
+            android:positiveButtonText="@null"
+            android:title="@string/pref_rotation_x_title"
+            android:summary="@string/pref_rotation_x_description" />
+        <ListPreference
+            android:key="pref_rotation_y"
+            android:entries="@array/pref_rotation_list_titles"
+            android:entryValues="@array/pref_rotation_list_values"
+            android:negativeButtonText="@null"
+            android:positiveButtonText="@null"
+            android:title="@string/pref_rotation_y_title"
+            android:summary="@string/pref_rotation_y_description" />
+        <ListPreference
+            android:key="pref_rotation_z"
+            android:entries="@array/pref_rotation_list_titles"
+            android:entryValues="@array/pref_rotation_list_values"
+            android:negativeButtonText="@null"
+            android:positiveButtonText="@null"
+            android:title="@string/pref_rotation_z_title"
+            android:summary="@string/pref_rotation_z_description" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="@string/pref_sensors_header">
 
-    <!- This preference simply launches an intent when selected. Use this UI sparingly, per
-         design guidelines. ->
-    <Preference android:title="@string/pref_title_system_sync_settings">
-        <intent android:action="android.settings.SYNC_SETTINGS" />
-    </Preference-->
+    </PreferenceCategory>
 
 </PreferenceScreen>

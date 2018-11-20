@@ -90,6 +90,26 @@
     <string name="pref_sensors_header">Sensors</string>
     <string name="pref_sensors_title_sync_frequency">Sync frequency</string>
 
+    <string name="pref_rotations_header">Rotations</string>
+    <string-array name="pref_rotation_list_titles">
+        <item>0</item>
+        <item>\u03C0/2</item>
+        <item>\u03C0</item>
+        <item>3\u03C0/2</item>
+    </string-array>
+    <string-array name="pref_rotation_list_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
+    <string name="pref_rotation_x_title">X-Rotation</string>
+    <string name="pref_rotation_x_description">Rotate X-Axis by %s clockwise</string>
+    <string name="pref_rotation_y_title">Y-Rotation</string>
+    <string name="pref_rotation_y_description">Rotate Y-Axis by %s clockwise</string>
+    <string name="pref_rotation_z_title">Z-Rotation</string>
+    <string name="pref_rotation_z_description">Rotate Z-Axis by %s clockwise</string>
+
     <!-- Settings -> Frame Capture -->
     <string name="pref_capture_header">Frame Capture</string>
 
@@ -112,6 +132,11 @@
 
     <string name="pref_capture_sound_title">Play sound</string>
     <string name="pref_capture_sound_description">Play sounds on record operations</string>
+
+    <!-- Settings -> Help -->
+    <string name="pref_help_header">Help</string>
+    <string name="pref_help_reset_title">Reset Settings</string>
+    <string name="pref_help_reset_description">Reset default settings</string>
 
     <string name="alert_permission_denied">WARNING! Denying the permission will set this preference back to its default</string>
 </resources>

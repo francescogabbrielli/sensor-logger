@@ -26,7 +26,8 @@ public class LogStreaming extends LogTarget {
     private StreamingServer server;
     /** If recording can be controlled remotely */
     private boolean remoteControl;
-
+    /** If to try to find sensors headers when opening */
+    private boolean sendHeaders;
 
     public LogStreaming(LoggingService service, SharedPreferences prefs) {
         super(service, prefs);
@@ -36,6 +37,7 @@ public class LogStreaming extends LogTarget {
         if (imageType == null)
             imageType = "image/*";
         remoteControl = prefs.getBoolean(Util.PREF_STREAMING_RECORD, false);
+
     }
 
     @Override
@@ -52,14 +54,25 @@ public class LogStreaming extends LogTarget {
     @Override
     public void open(String folder, String filename) throws IOException {
         //overriding default stream to manage everything in the streaming server
+        sendHeaders = true;
     }
 
     @Override
     public void write(byte[] data, long timestamp) throws IOException {
         String type = imageType;
-        if (data.length < 2000)//heuristic guess
-            type = "text/csv";
-        server.stream(data, timestamp, type);
+        if (data.length<2000) {//heuristic guess: TODO pass content-type?
+            if (sendHeaders && data[0]>64) {
+                sendHeaders = false;
+                String headers = new String(data);
+                int endLine = headers.indexOf('\n');
+                if (endLine>0 && endLine<data.length) {
+                    data = headers.substring(endLine + 1).getBytes();
+                    server.setTextHeaders(headers.substring(0, endLine + 1));
+                }
+            }
+            server.streamData(data, timestamp);
+        } else
+            server.streamImage(data, timestamp, type);
     }
 
     @Override

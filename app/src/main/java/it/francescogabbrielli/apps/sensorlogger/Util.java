@@ -47,6 +47,8 @@ public class Util {
     public final static String PREF_CAPTURE_IMGFORMAT   = "pref_capture_imgformat";
     public final static String PREF_CAPTURE_SOUND       = "pref_capture_sound";
 
+    public final static String PREF_HELP_RESET          = "pref_help_reset";
+
     public final static String PREF_ROTATION_X          = "pref_rotation_x";
     public final static String PREF_ROTATION_Y          = "pref_rotation_y";
     public final static String PREF_ROTATION_Z          = "pref_rotation_z";
@@ -88,18 +90,18 @@ public class Util {
      * @param context
      *              application context
      */
-    public static void loadDefaults(final Context context) {
+    public static void loadDefaults(final Context context, final boolean force) {
         new Thread() {
             @Override
             public void run() {
                 Properties defaults = new Properties();
-                try{
+                try {
                     defaults.load(context.getAssets().open("defaults.properties"));
                     SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
                     SharedPreferences.Editor editor = prefs.edit();
                     for (Enumeration e=defaults.propertyNames(); e.hasMoreElements();) {
                         String key = String.valueOf(e.nextElement());
-                        if (!prefs.contains(key)) {
+                        if (force || !prefs.contains(key)) {
                             String val = defaults.getProperty(key);
                             //TODO: manage different types?
                             if ("TRUE".equalsIgnoreCase(val) || "FALSE".equalsIgnoreCase(val)) {

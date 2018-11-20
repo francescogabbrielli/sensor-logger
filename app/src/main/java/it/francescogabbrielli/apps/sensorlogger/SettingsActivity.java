@@ -7,6 +7,7 @@ import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
+import android.media.AudioManager;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
 import android.preference.EditTextPreference;
@@ -184,7 +185,8 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
                 || SensorsPreferenceFragment.class.getName().equals(fragmentName)
                 || CapturePreferenceFragment.class.getName().equals(fragmentName)
                 || FTPPreferenceFragment.class.getName().equals(fragmentName)
-                || StreamingPreferenceFragment.class.getName().equals(fragmentName);
+                || StreamingPreferenceFragment.class.getName().equals(fragmentName)
+                || HelpPreferenceFragment.class.getName().equals(fragmentName);
     }
 
     public static class LoggingPreferenceFragment extends AppCompatPreferenceFragment {
@@ -237,18 +239,34 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
        }
     }
 
+    public static class HelpPreferenceFragment extends AppCompatPreferenceFragment {
+        @Override
+        public void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            addPreferencesFromResource(R.xml.pref_help);
+            findPreference(Util.PREF_HELP_RESET).setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+                @Override
+                public boolean onPreferenceClick(Preference preference) {
+                    AudioManager mgr = (AudioManager) preference.getContext().getSystemService(Context.AUDIO_SERVICE);
+                    if (mgr!=null)
+                        mgr.playSoundEffect(AudioManager.FX_KEY_CLICK);
+                    Util.loadDefaults(preference.getContext(), true);
+                    return true;
+                }
+            });
+        }
+    }
+
     public static class SensorsPreferenceFragment extends AppCompatPreferenceFragment
                 implements LoaderManager.LoaderCallbacks<Cursor> {
 
         private Context context;
-        private PreferenceScreen screen;
 
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
-            screen = getPreferenceManager().createPreferenceScreen(getActivity());
-            screen.setOrderingAsAdded(true);
-            setPreferenceScreen(screen);
+            addPreferencesFromResource(R.xml.pref_sensors);
+            getPreferenceScreen().setOrderingAsAdded(true);
         }
 
         @Override
@@ -276,7 +294,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
                 p.setSummary(data.getString(1));
                 p.setDefaultValue(false);
                 p.setKey(data.getString(2));
-                screen.addPreference(p);
+                getPreferenceScreen().addPreference(p);
                 data.move(1);
             }
         }

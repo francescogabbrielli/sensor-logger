@@ -59,6 +59,8 @@ public class StreamingServer implements Runnable {
 
     /** The streaming buffers */
     private Buffer[] buffers;
+    /** The streaming data buffers */
+    private Buffer[] dataBuffers;
     /** Number of buffers */
     private final static int N_BUFFERS = 3;
     /** Size of each buffer */
@@ -66,11 +68,13 @@ public class StreamingServer implements Runnable {
     /** Size beyond which the outputstream is flushed */
     private final static int CHUNK_SIZE = 32 * 1024;
     /** Current buffer index */
-    private int currentBuffer;
+    private int currentBuffer, currentDataBuffer;
     /** New data available */
-    private boolean newData;
+    private boolean newImage, newData;
     /** Delay beyond which to logcat a delay in the streaming */
     private long delayLimit;
+
+    private String textHeaders;
 
     /** Recording control callback */
     private MainActivity main;
@@ -104,17 +108,38 @@ public class StreamingServer implements Runnable {
             this.timestamp = timestamp;
             this.contentType = contentType;
         }
+
+        void appendData(byte[] data, long timestamp) {
+            int curr = length;
+            length += data.length;
+            System.arraycopy(data, 0, this.data, curr, data.length);
+            this.timestamp = timestamp;
+            contentType = "text/csv";
+        }
+
+        @Override
+        public String toString() {
+            return String.format(Locale.US, boundaryFormat, contentType, length, timestamp);
+        }
     }
 
     public StreamingServer() {
         buffers = new Buffer[N_BUFFERS];
-        for (int i = 0; i < N_BUFFERS; i++)
+        dataBuffers = new Buffer[N_BUFFERS];
+        for (int i = 0; i < N_BUFFERS; i++) {
             buffers[i] = new Buffer();
+            dataBuffers[i] = new Buffer();
+        }
         currentBuffer = 0;
+        currentDataBuffer = 0;
     }
 
     public void setRecordingCallback(MainActivity main) {
         this.main = main;
+    }
+
+    void setTextHeaders(String headers) {
+        this.textHeaders = headers;
     }
 
     /**
@@ -152,8 +177,14 @@ public class StreamingServer implements Runnable {
      * @param timestamp
      * @throws IOException
      */
-    public synchronized void stream(byte[] data, long timestamp, String contentType) throws IOException {
+    public synchronized void streamImage(byte[] data, long timestamp, String contentType) {
         buffers[currentBuffer].setData(data, timestamp, contentType);
+        newImage = true;
+        notify();
+    }
+
+    public synchronized void streamData(byte[] data, long timestamp) {
+        dataBuffers[currentDataBuffer].appendData(data, timestamp);
         newData = true;
         notify();
     }
@@ -215,25 +246,6 @@ public class StreamingServer implements Runnable {
                 socket = serverSocket.accept();
                 Util.Log.d(TAG, "Connected to " + socket);
                 delayLimit = DELAY_LIMIT;
-
-                // start recording automatically if set
-                if (main!=null) {
-                    main.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            main.startRecording();
-                        }
-                    });
-                    synchronized (this) {
-                        while (!newData)
-                            try {
-                                wait();
-                            } catch (final InterruptedException stopMayHaveBeenCalled) {
-                                break;
-                            }
-                    }
-                }
-
             } catch (final SocketTimeoutException e) {
                 if (!running)
                     return;
@@ -244,18 +256,26 @@ public class StreamingServer implements Runnable {
             serverSocket.close();
             stream = new DataOutputStream(socket.getOutputStream());
             stream.writeBytes(HTTP_HEADER);
-            Util.Log.d(TAG, HTTP_HEADER);
+            Util.Log.v(TAG, HTTP_HEADER);
             int toFlush = HTTP_HEADER.length();
+
+
+            // start recording automatically if set
+            if (main!=null)
+                main.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        main.startRecording();
+                    }
+                });
 
             // stream current data
             out:
             while (running) {
-
-                Buffer buffer = null;
-
+                Buffer buffer, dataBuffer;
                 synchronized (this) {
 
-                    while (!newData)
+                    while (!newData && !newImage)
                         try {
                             //Util.Log.d(TAG, "Wait for data...");
                             wait();
@@ -263,27 +283,49 @@ public class StreamingServer implements Runnable {
                             break out;
                         }
 
-                    buffer = buffers[currentBuffer++];
+
+                    dataBuffer = newData ? dataBuffers[currentDataBuffer++] : null;
+                    buffer = newImage ? buffers[currentBuffer++] : null;
+                    //Util.Log.v(TAG, "SWAP!");
                     currentBuffer %= N_BUFFERS;
+                    currentDataBuffer %= N_BUFFERS;
+                    if (newData)
+                        dataBuffers[currentDataBuffer].length = 0;
                     newData = false;
+                    newImage = false;
                 }
 
-                long delay = SystemClock.elapsedRealtime() - buffer.timestamp;
-                if (delay > delayLimit) {
-                    Util.Log.i(TAG, "Streaming is delayed by " + delay/1000000L + "ms");
-                    delayLimit *= 2;
-                } else if (delay > DELAY_LIMIT) {
-                    Util.Log.i(TAG, "Streaming is delayed by " + delay/1000000L + "ms");
-                    delayLimit /= 2;
+
+                if (dataBuffer!=null) {
+                    stream.writeBytes(BOUNDARY_LINE);
+                    stream.writeBytes(dataBuffer.toString());
+                    if (textHeaders!=null) {
+                        stream.writeBytes(textHeaders);
+                        textHeaders = null;
+                    }
+                    stream.write(dataBuffer.data, 0, dataBuffer.length);
+                    stream.writeBytes("\r\n");
+                    toFlush += dataBuffer.length;
                 }
 
-                stream.writeBytes(BOUNDARY_LINE);
-                stream.writeBytes(String.format(Locale.US, boundaryFormat, buffer.contentType, buffer.length, buffer.timestamp));
-                stream.write(buffer.data, 0, buffer.length);
-                stream.writeBytes("\r\n");
-                toFlush += buffer.length;
-//                if (buffer.contentType.equals("text/csv"))
-//                    Util.Log.i(TAG, buffer.contentType);
+                if (buffer!=null) {
+//                    long delay = SystemClock.elapsedRealtime() - buffer.timestamp;
+//                    if (delay > delayLimit) {
+//                        Util.Log.i(TAG, "Streaming is delayed by " + delay/1000000L + "ms");
+//                        delayLimit *= 2;
+//                    } else if (delay > DELAY_LIMIT) {
+//                        Util.Log.i(TAG, "Streaming is delayed by " + delay/1000000L + "ms");
+//                        delayLimit /= 2;
+//                    }
+                    stream.writeBytes(BOUNDARY_LINE);
+                    stream.writeBytes(buffer.toString());
+                    stream.write(buffer.data, 0, buffer.length);
+                    stream.writeBytes("\r\n");
+                    toFlush += buffer.length;
+//                    if (buffer.contentType.equals("text/csv"))
+//                        Util.Log.i(TAG, "TIME: "+buffer.timestamp);
+                }
+
                 if (toFlush>CHUNK_SIZE) {
                     stream.flush();
                     toFlush = 0;

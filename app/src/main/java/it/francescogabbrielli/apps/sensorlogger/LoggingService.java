@@ -9,6 +9,7 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
+import android.widget.Toast;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -154,7 +155,7 @@ public class LoggingService extends Service {
      */
     private List<LogTarget> newLoggers(int mask) {
 
-        // create targets based on preferences (TODO: generalize)
+        // create targets based on preferences TODO: generalize
         List<LogTarget> ret = new LinkedList<>();
         if ((Util.getIntPref(prefs, Util.PREF_FILE) & mask)==mask)
             try {ret.add(getLogger(LogFile.class));}
@@ -178,6 +179,7 @@ public class LoggingService extends Service {
         dataLoggers.addAll(newLoggers(Util.LOG_DATA));
 
         // connect targets as soon are they are created
+        final List<LogTarget> toRemove = new LinkedList<>();
         for (final Iterator<LogTarget> it = loggers.iterator(); it.hasNext(); ) {
             final LogTarget t = it.next();
             t.post(new Runnable() {
@@ -186,11 +188,17 @@ public class LoggingService extends Service {
                     try {
                         t.connect();
                     } catch (IOException e) {
-                        it.remove();
+                        toRemove.add(t);
+                        Toast.makeText(LoggingService.this, "Cannot connect: "+e.getMessage(), Toast.LENGTH_LONG).show();
                         Util.Log.e(t.getTag(), "Cannot connect", e);
                     }
                 }
             });
+        }
+        if (!toRemove.isEmpty()) {
+            loggers.removeAll(toRemove);
+            dataLoggers.removeAll(toRemove);
+            imageLoggers.removeAll(toRemove);
         }
     }
 

@@ -30,4 +30,9 @@
         android:icon="@drawable/ic_streaming_24dp"
         android:title="@string/pref_streaming_header" />
 
+    <header
+        android:fragment="it.francescogabbrielli.apps.sensorlogger.SettingsActivity$HelpPreferenceFragment"
+        android:icon="@drawable/ic_help_24dp"
+        android:title="@string/pref_help_header" />
+
 </preference-headers>
