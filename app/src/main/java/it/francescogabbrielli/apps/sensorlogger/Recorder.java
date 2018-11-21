@@ -250,7 +250,7 @@ public class Recorder implements ServiceConnection {
      * Stop recording. Unbinds from {@link LoggingService}
      */
     public void stop() {
-        if (!stopped)
+        if (stopped)
             return;
         stopped = true;
 

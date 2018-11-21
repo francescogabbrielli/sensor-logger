@@ -84,6 +84,8 @@ public class LogStreaming extends LogTarget {
     public void disconnect() throws IOException {
         if (!remoteControl)
             server.stop();
+        else
+            server.restart();
     }
 
 }

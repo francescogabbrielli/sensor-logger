@@ -41,6 +41,12 @@ public class StreamingServer implements Runnable {
                     "Content-Type: multipart/x-mixed-replace; boundary=" + BOUNDARY + "\r\n" +
                     "\r\n");
 
+    private static final String PART_FORMAT =
+            "Content-type: %s\r\n"
+            + "Content-Length: %d\r\n"
+            + "X-Timestamp: %d\r\n"
+            + "\r\n";
+
     /** Create a random boundary */
     private static String makeBoundary(int len) {
         String boundary = "";
@@ -50,12 +56,13 @@ public class StreamingServer implements Runnable {
     }
 
     private int port;
-    private String boundaryFormat;
-    private boolean running;
+
+    private boolean running, stopped;
     private Thread thread;
 
     /** The server socket */
     private ServerSocket serverSocket;
+    private Socket socket;
 
     /** The streaming buffers */
     private Buffer[] buffers;
@@ -119,7 +126,7 @@ public class StreamingServer implements Runnable {
 
         @Override
         public String toString() {
-            return String.format(Locale.US, boundaryFormat, contentType, length, timestamp);
+            return String.format(Locale.US, PART_FORMAT, contentType, length, timestamp);
         }
     }
 
@@ -132,6 +139,7 @@ public class StreamingServer implements Runnable {
         }
         currentBuffer = 0;
         currentDataBuffer = 0;
+        stopped = true;
     }
 
     public void setRecordingCallback(MainActivity main) {
@@ -149,21 +157,15 @@ public class StreamingServer implements Runnable {
      * @return true if it actually starts
      * @throws Exception
      */
-    public boolean start(int port) {
-        if (running)
+    public synchronized boolean start(int port) {
+        if (running || !stopped)
             return false;
-        else
-            running = true;
 
         Util.Log.i(TAG, "Start Streaming");
 
         this.port = port;
-        boundaryFormat =
-                "Content-type: %s\r\n"
-                + "Content-Length: %d\r\n"
-                + "X-Timestamp: %d\r\n"
-                + "\r\n";
 
+        running = true;
         thread = new Thread(this);
         thread.setDaemon(true);
         thread.start();
@@ -189,17 +191,26 @@ public class StreamingServer implements Runnable {
         notify();
     }
 
+
+
     /**
      * Stop the server
      */
-    public void stop() {
+    public synchronized void stop() {
         if (running) {
             running = false;
             Util.Log.i(TAG, "Stop Streaming");
-            try { serverSocket.close(); }
+            try { serverSocket.close(); }//in case is accepting
             catch(Exception e) {Util.Log.e(TAG, "Can't stop?", e);}
-            thread.interrupt();
+            newData = true;
+            notify();
         }
+    }
+
+    public synchronized void restart() {
+        Util.Log.i(TAG, "Restart Streaming");
+        if (thread!=null)
+            thread.interrupt();
     }
 
     /**
@@ -207,12 +218,13 @@ public class StreamingServer implements Runnable {
      */
     @Override
     public void run() {
+        stopped = false;
         while (running)
             try {
                 Util.Log.d(TAG, "Listen for incoming connections...");
                 acceptAndSStream();
             } catch( SocketException e ) {
-                //
+                //e.printStackTrace();
             } catch ( Exception e ) {
                 Util.Log.e(TAG, "Error while streaming", e);
                 try { Thread.sleep(1000); } catch (InterruptedException ie) { }
@@ -225,6 +237,7 @@ public class StreamingServer implements Runnable {
                         }
                     });
             }
+        stopped = true;
     }
 
     /**
@@ -234,7 +247,6 @@ public class StreamingServer implements Runnable {
      */
     private void acceptAndSStream() throws IOException {
 
-        Socket socket = null;
         DataOutputStream stream = null;
 
         try {
@@ -250,7 +262,6 @@ public class StreamingServer implements Runnable {
                 if (!running)
                     return;
             }
-
             while (socket == null);
 
             serverSocket.close();
@@ -258,7 +269,6 @@ public class StreamingServer implements Runnable {
             stream.writeBytes(HTTP_HEADER);
             Util.Log.v(TAG, HTTP_HEADER);
             int toFlush = HTTP_HEADER.length();
-
 
             // start recording automatically if set
             if (main!=null)
@@ -351,6 +361,7 @@ public class StreamingServer implements Runnable {
             }
             try { if (socket!=null) socket.close(); }
             catch (final Exception e) { Util.Log.e(TAG, "Error closing streaming client", e); }
+
         }
 
     }

@@ -122,7 +122,7 @@ public class MainActivity extends AppCompatActivity implements
         imgFormat = prefs.getString(Util.PREF_CAPTURE_IMGFORMAT, ".png");
     }
 
-    private boolean goodPause = true, goodResume = false;
+    private boolean goodPause = true, goodResume = false, paused = true;
 
     @Override
     protected void onStart() {
@@ -152,6 +152,8 @@ public class MainActivity extends AppCompatActivity implements
         if (!goodResume || !goodPause)
             return;
 
+        paused = false;
+
         if (Util.getIntPref(prefs, Util.PREF_STREAMING)>0 && prefs.getBoolean(Util.PREF_STREAMING_RECORD, false))
             recorder.startStreaming();
 
@@ -163,7 +165,8 @@ public class MainActivity extends AppCompatActivity implements
     protected void onPause() {
 
         PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
-        goodPause = pm!=null && !pm.isInteractive();
+        goodPause = pm==null || !pm.isInteractive();
+        paused = true;
         Util.Log.v(TAG, "onPause: "+goodPause);
 
         super.onPause();
@@ -355,7 +358,7 @@ public class MainActivity extends AppCompatActivity implements
 
     /** Start recording: must be called on UI thread */
     void startRecording() {
-        if (recording)
+        if (recording || paused)
             return;
         startTone(ToneGenerator.TONE_CDMA_PIP, 300);
         recPressed = true;
