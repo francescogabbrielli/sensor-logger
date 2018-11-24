@@ -105,6 +105,7 @@ class Buffer:
     def __init__(self, image, data):
         self.image = image
         self.data = data
+        self.timestamp = 0
 
     def __copy__(self):
         return Buffer(self.image, [d[:] for d in self.data])
@@ -129,18 +130,20 @@ class StreamBuffer:
         self.buffers = [Buffer(None, data) for i in range(0, StreamBuffer.N_BUFFERS)]
         self.lock.release()
 
-    def update_image(self, image):
+    def update_image(self, timestamp, image):
         self.lock.acquire()
         try:
             buf = self.buffers[self.currentIndex]
+            buf.timestamp = timestamp
             buf.image = image
         finally:
             self.lock.release()
 
-    def update_data(self, i, values):
+    def update_data(self, timestamp, i, values):
         self.lock.acquire()
         try:
             buf = self.buffers[self.currentIndex]
+            buf.timestamp = timestamp
             for j,v in enumerate(values):
                 buf.data[j][i] = float(v)
         finally:
@@ -221,7 +224,7 @@ class StreamDisplay:
                     chart.set_data(buffer.data[curr:curr+chart.dimension])
                     curr += chart.dimension
             self.canvas.draw()
-            plt.pause(0.01)
+            plt.pause(0.001)
         except Exception as e:
             print e
             #traceback.print_stack()
@@ -247,7 +250,7 @@ class StreamDisplay:
         self.canvas = canvas
 
         # start display thread
-        Thread(name="display", target=self.thread, args=(self, 0.01)).start()
+        Thread(name="display", target=self.thread, args=(self, 0.001)).start()
 
     def thread(self, display, delay):
         """ target of display thread """

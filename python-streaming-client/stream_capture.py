@@ -1,6 +1,6 @@
 # ########################################################################
 #
-#      An example script for capturing stream and passing it with opencv
+#    An example script for capturing stream and processing it with opencv
 #
 ##########################################################################
 
@@ -25,18 +25,19 @@ def streaming_callback(timestamp, type, data):
 # Create stream client
 sc = StreamClient("192.168.1.2", 8080)#connect to your camera!
 # Stream Buffer
-sb = StreamBuffer(DATA_LEN)# DATA_LEN is not used here because it is an images only stream
+sb = StreamBuffer(DATA_LEN)# DATA_LEN is not really used here because it is an images only stream
 
 
 # your thread!
 def my_thread():
-    buffer = sb.swap()
-    nparr = np.fromstring(buffer.image, np.uint8)
-    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    #
-    # do your coding here!
-    #
-    sleep(0.1)#//kind of 10 frames per second :)
+    while True:
+        buffer = sb.swap()
+        nparr = np.fromstring(buffer.image, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        #
+        # do your coding here!
+        #
+        sleep(0.1)#//kind of 10 frames per second :)
 
 
 # start the client:
