@@ -52,6 +52,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import it.francescogabbrielli.streamingserver.StreamingServer;
+
+
 public class MainActivity extends AppCompatActivity implements
         CameraBridgeViewBase.CvCameraViewListener,
         LoaderCallbackInterface {

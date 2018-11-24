@@ -7,8 +7,10 @@ import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+import it.francescogabbrielli.streamingserver.StreamingServer;
+
 /**
- * Streaming {@link LogTarget}. Stream data to an HTTP client
+ * it.francescogabbrielli.streamingserver.Streaming {@link LogTarget}. Stream data to an HTTP client
  */
 public class LogStreaming extends LogTarget {
 

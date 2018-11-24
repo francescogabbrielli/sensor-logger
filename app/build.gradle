@@ -10,10 +10,10 @@ android {
         versionCode 12
         versionName "0.3.5"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-//        ndk {
-//            moduleName "sensor-logger"
-//            abiFilters 'armeabi-v7a', 'arm64-v8a'
-//        }
+        ndk {
+            moduleName "sensor-logger"
+            abiFilters 'armeabi-v7a', 'arm64-v8a'
+        }
     }
     buildTypes {
         release {
@@ -32,6 +32,7 @@ dependencies {
     implementation 'com.android.support:design:28.0.0'
     implementation 'com.android.support:support-v4:28.0.0'
     implementation project(':openCVLibrary320')
+    implementation project(':streamingserver')
     testImplementation 'junit:junit:4.12'
     implementation files('libs/commons-net-3.6.jar')
 }

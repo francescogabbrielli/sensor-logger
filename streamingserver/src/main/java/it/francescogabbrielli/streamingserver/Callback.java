@@ -1,6 +1,6 @@
 package it.francescogabbrielli.streamingserver;
 
-public interface ControlCallback {
+public interface Callback {
 
     void start();
 

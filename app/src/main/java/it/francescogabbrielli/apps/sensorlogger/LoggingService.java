@@ -12,10 +12,11 @@ import android.support.annotation.Nullable;
 import android.widget.Toast;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+
+import it.francescogabbrielli.streamingserver.StreamingServer;
 
 /**
  * A {@link android.app.Service} subclass for handling asynchronous task requests in

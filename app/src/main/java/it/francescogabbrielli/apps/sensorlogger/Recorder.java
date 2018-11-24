@@ -16,6 +16,9 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+import it.francescogabbrielli.streamingserver.Callback;
+import it.francescogabbrielli.streamingserver.StreamingServer;
+
 public class Recorder implements ServiceConnection {
 
     private final static String TAG = Recorder.class.getSimpleName();
@@ -35,7 +38,7 @@ public class Recorder implements ServiceConnection {
     /** Bound to service */
     private boolean bound;
 
-    /** Streaming Server */
+    /** it.francescogabbrielli.streamingserver.Streaming Server */
     private StreamingServer streamingServer;
     /** Sensor sensorReader */
     private SensorReader sensorReader;
@@ -224,7 +227,26 @@ public class Recorder implements ServiceConnection {
      * Start the streaming server in the case of remote control of the recording
      */
     public void startStreaming() {
-        streamingServer.setRecordingCallback(context);
+        streamingServer.setCallback(new Callback() {
+            @Override
+            public void start() {
+                context.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        context.startRecording();
+                    }
+                });
+            }
+            @Override
+            public void stop() {
+                context.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        context.stopRecording(R.string.toast_recording_endofstream);
+                    }
+                });
+            }
+        });
         streamingServer.start(Util.getIntPref(prefs, Util.PREF_STREAMING_PORT));
     }
 
