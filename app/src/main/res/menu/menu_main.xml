@@ -3,8 +3,15 @@
     xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/action_settings"
+        android:id="@+id/action_record"
         android:orderInCategory="1"
+        android:icon="@drawable/btn_rec"
+        android:title="Record"
+        app:showAsAction="always"/>
+
+    <item
+        android:id="@+id/action_settings"
+        android:orderInCategory="100"
         android:icon="@drawable/ic_settings_24dp"
         android:title="@string/title_activity_settings"
         app:showAsAction="always" />

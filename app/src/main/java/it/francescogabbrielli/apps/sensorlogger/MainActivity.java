@@ -205,6 +205,9 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
+            case R.id.action_record:
+                onRecPressed();
+                return true;
             case R.id.action_settings:
                 startActivity(new Intent(this, SettingsActivity.class));
                 return true;
@@ -219,15 +222,15 @@ public class MainActivity extends AppCompatActivity implements
     private boolean recPressed, recording;
     private long lastPressed;
 
-    @TargetApi(Build.VERSION_CODES.M)
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        if(event.getAction() == MotionEvent.ACTION_DOWN) {
-            event.setAction(MotionEvent.ACTION_BUTTON_RELEASE);
-            return onTrackballEvent(event);
-        }
-        return super.onTouchEvent(event);
-    }
+//    @TargetApi(Build.VERSION_CODES.M)
+//    @Override
+//    public boolean onTouchEvent(MotionEvent event) {
+//        if(event.getAction() == MotionEvent.ACTION_DOWN) {
+//            event.setAction(MotionEvent.ACTION_BUTTON_RELEASE);
+//            return onTrackballEvent(event);
+//        }
+//        return super.onTouchEvent(event);
+//    }
 
     @Override
     public boolean onTrackballEvent(MotionEvent event) {
@@ -372,7 +375,7 @@ public class MainActivity extends AppCompatActivity implements
     void stopRecording(int msg) {
         if (!recording && !recPressed)
             return;
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
         startTone(ToneGenerator.TONE_CDMA_CONFIRM, 300);
         recPressed = false;
         recording = false;
@@ -469,6 +472,7 @@ public class MainActivity extends AppCompatActivity implements
         } else if (Manifest.permission.INTERNET.equals(permission)) {
             //prefs.edit().putBoolean(Util.PREF_FTP, true).apply();
         }
+        onPermissionOk(permission);
     }
 
     protected void onPermissionDenied(String permission) {

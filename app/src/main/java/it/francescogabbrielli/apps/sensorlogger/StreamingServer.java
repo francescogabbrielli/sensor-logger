@@ -29,6 +29,8 @@ public class StreamingServer implements Runnable {
     private static final String BOUNDARY = makeBoundary(32);
     /** Boundary line to separate parts in the stream */
     private static final String BOUNDARY_LINE = "\r\n--" + BOUNDARY + "\r\n";
+
+    private static final int BOUNDARY_LENGTH = BOUNDARY_LINE.length();
     /** HTTP header */
     private static final String HTTP_HEADER = (
             "HTTP/1.0 200 OK\r\n" +
@@ -71,7 +73,7 @@ public class StreamingServer implements Runnable {
     /** Number of buffers */
     private final static int N_BUFFERS = 3;
     /** Size of each buffer */
-    private final static int BUFFER_SIZE = 512 * 1024;
+    private final static int BUFFER_SIZE = 1048 * 1024;
     /** Size beyond which the outputstream is flushed */
     private final static int CHUNK_SIZE = 32 * 1024;
     /** Current buffer index */
@@ -290,9 +292,9 @@ public class StreamingServer implements Runnable {
                             //Util.Log.d(TAG, "Wait for data...");
                             wait();
                         } catch (final InterruptedException stopMayHaveBeenCalled) {
+                            Util.Log.d(TAG, "Stop may have been called...");
                             break out;
                         }
-
 
                     dataBuffer = newData ? dataBuffers[currentDataBuffer++] : null;
                     buffer = newImage ? buffers[currentBuffer++] : null;
@@ -305,17 +307,20 @@ public class StreamingServer implements Runnable {
                     newImage = false;
                 }
 
-
                 if (dataBuffer!=null) {
                     stream.writeBytes(BOUNDARY_LINE);
-                    stream.writeBytes(dataBuffer.toString());
+                    toFlush += BOUNDARY_LENGTH;
+                    String part = dataBuffer.toString();
+                    stream.writeBytes(part);
+                    toFlush += part.length();
                     if (textHeaders!=null) {
                         stream.writeBytes(textHeaders);
+                        toFlush += textHeaders.length();
                         textHeaders = null;
                     }
                     stream.write(dataBuffer.data, 0, dataBuffer.length);
                     stream.writeBytes("\r\n");
-                    toFlush += dataBuffer.length;
+                    toFlush += dataBuffer.length+2;
                 }
 
                 if (buffer!=null) {
@@ -328,10 +333,13 @@ public class StreamingServer implements Runnable {
 //                        delayLimit /= 2;
 //                    }
                     stream.writeBytes(BOUNDARY_LINE);
-                    stream.writeBytes(buffer.toString());
+                    toFlush += BOUNDARY_LENGTH;
+                    String part = buffer.toString();
+                    stream.writeBytes(part);
+                    toFlush += part.length();
                     stream.write(buffer.data, 0, buffer.length);
                     stream.writeBytes("\r\n");
-                    toFlush += buffer.length;
+                    toFlush += buffer.length+2;
 //                    if (buffer.contentType.equals("text/csv"))
 //                        Util.Log.i(TAG, "TIME: "+buffer.timestamp);
                 }
