@@ -17,7 +17,7 @@ import java.util.Date;
 import java.util.Locale;
 
 import it.francescogabbrielli.streamingserver.Callback;
-import it.francescogabbrielli.streamingserver.StreamingServer;
+import it.francescogabbrielli.streamingserver.Server;
 
 public class Recorder implements ServiceConnection {
 
@@ -30,8 +30,6 @@ public class Recorder implements ServiceConnection {
 
     /** MainActivity context */
     private MainActivity context;
-    /** Current preferences */
-    private SharedPreferences prefs;
 
     /** The data-logging service */
     private LoggingService service;
@@ -39,7 +37,7 @@ public class Recorder implements ServiceConnection {
     private boolean bound;
 
     /** it.francescogabbrielli.streamingserver.Streaming Server */
-    private StreamingServer streamingServer;
+    private Server streamingServer;
     /** Sensor sensorReader */
     private SensorReader sensorReader;
 
@@ -59,6 +57,9 @@ public class Recorder implements ServiceConnection {
     /** 3d sensors axes rotation */
     private Rotation rotation;
 
+    private int streamingPort;
+    private int streamingType;
+
     /**
      * Create a new {@link Recorder}.
      *
@@ -66,9 +67,9 @@ public class Recorder implements ServiceConnection {
      * @param reader the senors reader
      * @param server the streaming server
      */
-    Recorder(MainActivity context, SensorReader reader, StreamingServer server) {
+    Recorder(MainActivity context, SensorReader reader, Server server) {
         this.context = context;
-        prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         this.sensorReader = reader;
         this.streamingServer = server;
         dataLengths = new SparseIntArray();
@@ -82,6 +83,8 @@ public class Recorder implements ServiceConnection {
         flagNetwork = Util.getIntPref(prefs, Util.PREF_FTP)>0;
         duration = Util.getLongPref(prefs, Util.PREF_LOGGING_RATE);
         ext = prefs.getString(Util.PREF_CAPTURE_IMGFORMAT,".png");
+        if (!prefs.getBoolean(Util.PREF_CAPTURE_CAMERA, false))
+            ext = null;
         formatTimestamp = prefs.getString(Util.PREF_LOGGING_TIMESTAMP_FORMAT, "%s%07d%s");
 
         //read configurable sensors dimensions
@@ -99,6 +102,9 @@ public class Recorder implements ServiceConnection {
                 Util.getIntPref(prefs, Util.PREF_ROTATION_Y),
                 Util.getIntPref(prefs, Util.PREF_ROTATION_Z)
         );
+
+        streamingPort = Util.getIntPref(prefs, Util.PREF_STREAMING_PORT);
+        streamingType = Util.getIntPref(prefs, Util.PREF_STREAMING);
     }
 
     /**
@@ -247,7 +253,10 @@ public class Recorder implements ServiceConnection {
                 });
             }
         });
-        streamingServer.start(Util.getIntPref(prefs, Util.PREF_STREAMING_PORT));
+
+        streamingServer.start(streamingPort,
+                (streamingType & Util.LOG_IMAGE)==Util.LOG_IMAGE ? ext : null,
+                (streamingType & Util.LOG_SENSORS) == Util.LOG_SENSORS);
     }
 
     /**

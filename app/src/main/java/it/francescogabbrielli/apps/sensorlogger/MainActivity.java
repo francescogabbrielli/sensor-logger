@@ -52,7 +52,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import it.francescogabbrielli.streamingserver.StreamingServer;
+import it.francescogabbrielli.streamingserver.Server;
 
 
 public class MainActivity extends AppCompatActivity implements
@@ -110,7 +110,7 @@ public class MainActivity extends AppCompatActivity implements
 
         recorder = new Recorder(this,
                 new SensorReader((SensorManager) getSystemService(SENSOR_SERVICE), prefs),
-                new StreamingServer());
+                new Server());
     }
 
     /**

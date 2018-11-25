@@ -7,38 +7,35 @@ import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
-import it.francescogabbrielli.streamingserver.StreamingServer;
+import it.francescogabbrielli.streamingserver.Server;
 
 /**
  * it.francescogabbrielli.streamingserver.Streaming {@link LogTarget}. Stream data to an HTTP client
  */
 public class LogStreaming extends LogTarget {
 
-    private static final Map<String, String> CONTENT_TYPES = new HashMap<String, String>()
-    {{
-        put(".jpg", "image/jpeg");
-        put(".png", "image/png");
-    }};
-
     /** Server port */
     private int port;
     /** Image Content-Type of the streaming */
-    private String imageType;
+    private String imageExt;
     /** The server */
-    private StreamingServer server;
+    private Server server;
     /** If recording can be controlled remotely */
     private boolean remoteControl;
     /** If to try to find sensors headers when opening */
     private boolean sendHeaders;
+    /** Streaming type: 0=None, 1=Image, 2=Sensors, 3=Both */
+    private int type;
 
     public LogStreaming(LoggingService service, SharedPreferences prefs) {
         super(service, prefs);
         server = service.getStreamingServer();
         port = Util.getIntPref(prefs, Util.PREF_STREAMING_PORT);
-        imageType = CONTENT_TYPES.get(prefs.getString(Util.PREF_CAPTURE_IMGFORMAT, ""));
-        if (imageType == null)
-            imageType = "image/*";
+        imageExt = prefs.getString(Util.PREF_CAPTURE_IMGFORMAT, "");
+        if (!prefs.getBoolean(Util.PREF_CAPTURE_CAMERA, false))
+            imageExt = null;
         remoteControl = prefs.getBoolean(Util.PREF_STREAMING_RECORD, false);
+        type = Util.getIntPref(prefs, Util.PREF_STREAMING);
 
     }
 
@@ -50,7 +47,9 @@ public class LogStreaming extends LogTarget {
     @Override
     public void connect() throws IOException {
         if (!remoteControl)
-            server.start(port);
+            server.start(port,
+                    (type & Util.LOG_IMAGE)==Util.LOG_IMAGE ? imageExt : null,
+                    (type & Util.LOG_SENSORS) == Util.LOG_SENSORS);
     }
 
     @Override
@@ -61,7 +60,6 @@ public class LogStreaming extends LogTarget {
 
     @Override
     public void write(byte[] data, long timestamp) throws IOException {
-        String type = imageType;
         if (data.length<2000) {//heuristic guess: TODO pass content-type?
             if (sendHeaders && data[0]>64) {
                 sendHeaders = false;
@@ -69,12 +67,12 @@ public class LogStreaming extends LogTarget {
                 int endLine = headers.indexOf('\n');
                 if (endLine>0 && endLine<data.length) {
                     data = headers.substring(endLine + 1).getBytes();
-                    server.setTextHeaders(headers.substring(0, endLine + 1));
+                    server.setSensorsHeaders(headers.substring(0, endLine + 1));
                 }
             }
-            server.streamData(data, timestamp);
+            server.streamSensors(data, timestamp);
         } else
-            server.streamImage(data, timestamp, type);
+            server.streamImage(data, timestamp);
     }
 
     @Override
@@ -87,7 +85,7 @@ public class LogStreaming extends LogTarget {
         if (!remoteControl)
             server.stop();
         else
-            server.restart();
+            server.reset();
     }
 
 }

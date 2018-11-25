@@ -16,7 +16,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import it.francescogabbrielli.streamingserver.StreamingServer;
+import it.francescogabbrielli.streamingserver.Server;
 
 /**
  * A {@link android.app.Service} subclass for handling asynchronous task requests in
@@ -47,7 +47,7 @@ public class LoggingService extends Service {
     private Handler handler;
 
     /** A simple streaming server */
-    private StreamingServer streamingServer;
+    private Server streamingServer;
 
 
     public class Binder extends android.os.Binder {
@@ -128,7 +128,7 @@ public class LoggingService extends Service {
         super.onDestroy();
     }
 
-    public StreamingServer getStreamingServer() {
+    public Server getStreamingServer() {
         return streamingServer;
     }
 
@@ -152,7 +152,7 @@ public class LoggingService extends Service {
      * @param mask bitmask (1=images, 2=sensors data)
      * @return the list of available targets
      * @see Util#LOG_IMAGE
-     * @see Util#LOG_DATA
+     * @see Util#LOG_SENSORS
      */
     private List<LogTarget> newLoggers(int mask) {
 
@@ -171,13 +171,13 @@ public class LoggingService extends Service {
         return ret;
     }
 
-    void connect(StreamingServer server) {
+    void connect(Server server) {
         this.streamingServer = server;
         loggers.clear();
         imageLoggers.clear();
         imageLoggers.addAll(newLoggers(Util.LOG_IMAGE));
         dataLoggers.clear();
-        dataLoggers.addAll(newLoggers(Util.LOG_DATA));
+        dataLoggers.addAll(newLoggers(Util.LOG_SENSORS));
 
         // connect targets as soon are they are created
         final List<LogTarget> toRemove = new LinkedList<>();

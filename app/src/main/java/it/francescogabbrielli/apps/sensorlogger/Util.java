@@ -21,7 +21,7 @@ public class Util {
     private final static String TAG = Util.class.getSimpleName();
 
     public final static int LOG_IMAGE = 1;
-    public final static int LOG_DATA = 2;
+    public final static int LOG_SENSORS = 2;
 
     public final static String PREF_APP_FOLDER      = "pref_app_folder";
     public final static String PREF_FILENAME_DATA   = "pref_filename_data";
