@@ -1,4 +1,4 @@
-package it.francescogabbrielli.streamingserver;
+package it.francescogabbrielli.streaming.server;
 
 public interface Callback {
 

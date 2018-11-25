@@ -4,22 +4,20 @@ import android.content.SharedPreferences;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.HashMap;
-import java.util.Map;
 
-import it.francescogabbrielli.streamingserver.Server;
+import it.francescogabbrielli.streaming.server.StreamingServer;
 
 /**
- * it.francescogabbrielli.streamingserver.Streaming {@link LogTarget}. Stream data to an HTTP client
+ * Streaming {@link LogTarget}. Stream data to an HTTP client
  */
 public class LogStreaming extends LogTarget {
 
-    /** Server port */
+    /** StreamingServer port */
     private int port;
     /** Image Content-Type of the streaming */
     private String imageExt;
     /** The server */
-    private Server server;
+    private StreamingServer server;
     /** If recording can be controlled remotely */
     private boolean remoteControl;
     /** If to try to find sensors headers when opening */
@@ -67,10 +65,10 @@ public class LogStreaming extends LogTarget {
                 int endLine = headers.indexOf('\n');
                 if (endLine>0 && endLine<data.length) {
                     data = headers.substring(endLine + 1).getBytes();
-                    server.setSensorsHeaders(headers.substring(0, endLine + 1));
+                    server.setDataHeaders(headers.substring(0, endLine + 1));
                 }
             }
-            server.streamSensors(data, timestamp);
+            server.streamData(data, timestamp);
         } else
             server.streamImage(data, timestamp);
     }

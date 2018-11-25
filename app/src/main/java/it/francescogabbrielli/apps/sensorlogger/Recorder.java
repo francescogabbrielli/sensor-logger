@@ -16,8 +16,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-import it.francescogabbrielli.streamingserver.Callback;
-import it.francescogabbrielli.streamingserver.Server;
+import it.francescogabbrielli.streaming.server.Callback;
+import it.francescogabbrielli.streaming.server.StreamingServer;
 
 public class Recorder implements ServiceConnection {
 
@@ -36,8 +36,8 @@ public class Recorder implements ServiceConnection {
     /** Bound to service */
     private boolean bound;
 
-    /** it.francescogabbrielli.streamingserver.Streaming Server */
-    private Server streamingServer;
+    /** Streaming StreamingServer */
+    private StreamingServer streamingServer;
     /** Sensor sensorReader */
     private SensorReader sensorReader;
 
@@ -67,7 +67,7 @@ public class Recorder implements ServiceConnection {
      * @param reader the senors reader
      * @param server the streaming server
      */
-    Recorder(MainActivity context, SensorReader reader, Server server) {
+    Recorder(MainActivity context, SensorReader reader, StreamingServer server) {
         this.context = context;
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         this.sensorReader = reader;

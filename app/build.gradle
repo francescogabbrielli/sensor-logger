@@ -32,7 +32,7 @@ dependencies {
     implementation 'com.android.support:design:28.0.0'
     implementation 'com.android.support:support-v4:28.0.0'
     implementation project(':openCVLibrary320')
-    implementation project(':streamingserver')
+    implementation project(':streaming')
     testImplementation 'junit:junit:4.12'
     implementation files('libs/commons-net-3.6.jar')
 }

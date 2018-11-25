@@ -1,1 +1,1 @@
-include ':app', ':openCVLibrary320', ':streamingserver', ':simple'
+include ':app', ':openCVLibrary320', ':streaming', ':simple'

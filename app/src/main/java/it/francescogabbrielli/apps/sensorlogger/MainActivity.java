@@ -52,7 +52,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import it.francescogabbrielli.streamingserver.Server;
+import it.francescogabbrielli.streaming.server.StreamingServer;
 
 
 public class MainActivity extends AppCompatActivity implements
@@ -110,7 +110,7 @@ public class MainActivity extends AppCompatActivity implements
 
         recorder = new Recorder(this,
                 new SensorReader((SensorManager) getSystemService(SENSOR_SERVICE), prefs),
-                new Server());
+                new StreamingServer());
     }
 
     /**
@@ -222,15 +222,15 @@ public class MainActivity extends AppCompatActivity implements
     private boolean recPressed, recording;
     private long lastPressed;
 
-    @TargetApi(Build.VERSION_CODES.M)
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        if(event.getAction() == MotionEvent.ACTION_DOWN) {
-            event.setAction(MotionEvent.ACTION_BUTTON_RELEASE);
-            return onTrackballEvent(event);
-        }
-        return super.onTouchEvent(event);
-    }
+//    @TargetApi(Build.VERSION_CODES.M)
+//    @Override
+//    public boolean onTouchEvent(MotionEvent event) {
+//        if(event.getAction() == MotionEvent.ACTION_DOWN) {
+//            event.setAction(MotionEvent.ACTION_BUTTON_RELEASE);
+//            return onTrackballEvent(event);
+//        }
+//        return super.onTouchEvent(event);
+//    }
 
     @Override
     public boolean onTrackballEvent(MotionEvent event) {

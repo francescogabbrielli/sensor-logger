@@ -16,7 +16,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import it.francescogabbrielli.streamingserver.Server;
+import it.francescogabbrielli.streaming.server.StreamingServer;
 
 /**
  * A {@link android.app.Service} subclass for handling asynchronous task requests in
@@ -47,7 +47,7 @@ public class LoggingService extends Service {
     private Handler handler;
 
     /** A simple streaming server */
-    private Server streamingServer;
+    private StreamingServer streamingServer;
 
 
     public class Binder extends android.os.Binder {
@@ -128,7 +128,7 @@ public class LoggingService extends Service {
         super.onDestroy();
     }
 
-    public Server getStreamingServer() {
+    public StreamingServer getStreamingServer() {
         return streamingServer;
     }
 
@@ -171,7 +171,7 @@ public class LoggingService extends Service {
         return ret;
     }
 
-    void connect(Server server) {
+    void connect(StreamingServer server) {
         this.streamingServer = server;
         loggers.clear();
         imageLoggers.clear();
