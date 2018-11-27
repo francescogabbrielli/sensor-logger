@@ -1,3 +1,10 @@
 <resources>
+
     <string name="app_name">Simple DataStreamer</string>
+
+    <string name="alert_permission_denied">WARNING! Denying the permission will set this preference back to its default</string>
+
+    <string name="title_activity_record">Record</string>
+    <string name="title_activity_settings">Settings</string>
+
 </resources>
