@@ -68,7 +68,7 @@ public class StreamingServer implements Runnable {
             dataBufferThread.setHeaders(headers);
     }
 
-    boolean isRunning() {
+    public boolean isRunning() {
         return running;
     }
 
@@ -80,6 +80,10 @@ public class StreamingServer implements Runnable {
     synchronized void stopCallback() {
         if (callback!=null)
             callback.stop();
+    }
+
+    public synchronized boolean start(int port, String imageExt) {
+        return start(port, imageExt,false);
     }
 
     /**

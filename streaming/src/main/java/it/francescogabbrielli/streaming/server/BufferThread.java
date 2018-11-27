@@ -71,7 +71,7 @@ public class BufferThread extends Thread {
 
     }
 
-    void terminate() {
+    synchronized void terminate() {
         newData = true;
         notify();
     }
