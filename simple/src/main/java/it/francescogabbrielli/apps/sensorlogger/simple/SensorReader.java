@@ -18,9 +18,11 @@ import java.util.TreeSet;
 /**
  * An utility class to manage sensor readings in a separate thread
  */
-public class SensorReader implements SensorEventListener, Iterable<SensorEvent> {
+public class SensorReader {
 
     private final static String TAG = SensorReader.class.getSimpleName();
+
+    private SensorEventListener sensorListener;
 
     /** The system {@link SensorManager} */
     private final SensorManager sensorManager;
@@ -28,11 +30,10 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
     /** Sensors managed by this class */
     private final TreeSet<Sensor> sensors;
 
-    /** Latest sensor readings ({@link SensorEvent}) for each sensor */
-    private final SparseArray<SensorEvent> readings;
-
     /** Own thread, where to register sensor listeners */
     private HandlerThread ht;
+
+    private int delay;
 
 
     /**
@@ -41,9 +42,9 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
      * @param sensorManager the Android {@link SensorManager}
      * @param prefs the app preferences
      */
-    SensorReader(SensorManager sensorManager, SharedPreferences prefs) {
+    SensorReader(SensorEventListener listener, SensorManager sensorManager, SharedPreferences prefs) {
+        this.sensorListener = listener;
         this.sensorManager = sensorManager;
-        readings = new SparseArray<>();
         sensors = new TreeSet<>(new Comparator<Sensor>() {
             @Override
             public int compare(Sensor s1, Sensor s2) {
@@ -56,6 +57,7 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
                 if (s!=null)
                     sensors.add(s);
             }
+        delay = Util.getIntPref(prefs, App.SENSORS_SAMPLING_DELAY);
 
     }
 
@@ -68,7 +70,7 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
             ht.start();
             Handler handler = new Handler(ht.getLooper());
             for (Sensor s : sensors)
-                sensorManager.registerListener(this, s, SensorManager.SENSOR_DELAY_FASTEST, handler);
+                sensorManager.registerListener(sensorListener, s, delay, handler);
         }
     }
 
@@ -80,59 +82,9 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
             ht.quitSafely();
             ht = null;
             for (Sensor s : sensors)
-                sensorManager.unregisterListener(this, s);
+                sensorManager.unregisterListener(sensorListener, s);
         }
     }
 
-    /**
-     * Iterate through all the specified sensors
-     *
-     * @return an iterator of {@link SensorEvent}s
-     */
-    @NonNull
-    @Override
-    public Iterator<SensorEvent> iterator() {
-        return new Iterator<SensorEvent>() {
-            private Iterator<Sensor> it = sensors.iterator();
-            @Override
-            public boolean hasNext() {
-                return it.hasNext();
-            }
-            @Override
-            public SensorEvent next() {
-                return readSensor(it.next());
-            }
-        };
-    }
-
-    /**
-     * Read the latest available data for a sensor.
-     *
-     * @param sensor the sensor
-     * @return the last {@link SensorEvent} for that sensor
-     */
-    public SensorEvent readSensor(Sensor sensor) {
-        return readings.get(sensor.getType());
-    }
-
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        SensorEvent e = readSensor(sensor);
-        Log.w(TAG, "Accuracy changed for " + Util.getSensorName(sensor)+": "
-                +(e!=null ? e.accuracy : -1)+"->"+accuracy);
-    }
-
-    /**
-     * Store the last {@link SensorEvent} for each sensor
-     * @param event the event
-     */
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-        readings.put(event.sensor.getType(), event);
-    }
-
-    public void dispose() {
-        stop();
-    }
 
 }

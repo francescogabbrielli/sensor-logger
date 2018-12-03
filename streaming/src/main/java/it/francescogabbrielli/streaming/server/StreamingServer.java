@@ -7,6 +7,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -49,17 +50,17 @@ public class StreamingServer implements Runnable {
 
 
     /** Recording control callback */
-    private Callback callback;
+    private StreamingCallback callback;
 
 
     public StreamingServer() {
         stopped = true;
         threadPool = Executors.newFixedThreadPool(N_THREADS);
-        threads = new LinkedList<>();
-        futures = new LinkedList<>();
+        threads = Collections.synchronizedList(new LinkedList<Streaming>());
+        futures = Collections.synchronizedList(new LinkedList<Future>());
     }
 
-    public synchronized void setCallback(Callback callback) {
+    public synchronized void setCallback(StreamingCallback callback) {
         this.callback = callback;
     }
 
@@ -74,12 +75,12 @@ public class StreamingServer implements Runnable {
 
     synchronized void startCallback() {
         if (callback!=null)
-            callback.start();
+            callback.onStartStreaming();
     }
 
     synchronized void stopCallback() {
         if (callback!=null)
-            callback.stop();
+            callback.onStopStreaming();
     }
 
     public synchronized boolean start(int port, String imageExt) {
@@ -101,29 +102,35 @@ public class StreamingServer implements Runnable {
 
         this.port = port;
 
-        running = true;
-        thread = new Thread(this);
-        thread.setDaemon(true);
-        thread.start();
         if (imageExt!=null)
             imageBufferThread = new BufferThread(this, CONTENT_TYPES.get(imageExt)!=null ? CONTENT_TYPES.get(imageExt) : "image/*");
         if (streamSensors)
             dataBufferThread = new BufferThread(this, "text/csv");
-
+        thread = new Thread(this);
+        //thread.setDaemon(true);
+        thread.start();
+        running = true;
         return true;
     }
 
     /**
-     * Stream data
+     * Stream image data
      *
-     * @param data
-     * @param timestamp
-     * @throws IOException
+     * @param data the image data to stream
+     * @param timestamp the timestamp of the image
+     * @return the {@link Runnable} performing the streaming
      */
     public synchronized void streamImage(byte[] data, long timestamp) {
         imageBufferThread.stream(data, timestamp);
     }
 
+    /**
+     * Stream sensors data
+     *
+     * @param data the sensors data to stream
+     * @param timestamp the timestamp of the sensors data
+     * @return the {@link Runnable} performing the streaming
+     */
     public synchronized void streamData(byte[] data, long timestamp) {
         dataBufferThread.streamAppend(data, timestamp);
     }
@@ -138,7 +145,7 @@ public class StreamingServer implements Runnable {
             running = false;
             Log.i(TAG, "Stop Streaming");
             try { serverSocket.close(); }//in case is accepting
-            catch(Exception e) {Log.e(TAG, "Can't stop?", e);}
+            catch(Exception e) {Log.e(TAG, "Can't onStopStreaming?", e);}
             if (imageBufferThread!=null)
                 imageBufferThread.terminate();
             if (dataBufferThread !=null)
@@ -198,11 +205,9 @@ public class StreamingServer implements Runnable {
         do try {
             socket = serverSocket.accept();
             Log.d(TAG, "Connected to " + socket);
-            synchronized (this) {
-                Streaming s = new Streaming(this, socket);
-                threads.add(s);
-                futures.add(threadPool.submit(s));
-            }
+            Streaming s = new Streaming(this, socket);
+            threads.add(s);
+            futures.add(threadPool.submit(s));
             serverSocket.close();
         } catch (final SocketTimeoutException e) {
             if (!running)
@@ -212,7 +217,7 @@ public class StreamingServer implements Runnable {
 
     }
 
-    synchronized void stream(Buffer buffer) {
+    void stream(Buffer buffer) {
         for (Streaming s : threads)
             s.stream(buffer);
     }

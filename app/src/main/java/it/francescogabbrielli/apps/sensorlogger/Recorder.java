@@ -16,7 +16,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-import it.francescogabbrielli.streaming.server.Callback;
+import it.francescogabbrielli.streaming.server.StreamingCallback;
 import it.francescogabbrielli.streaming.server.StreamingServer;
 
 public class Recorder implements ServiceConnection {
@@ -233,9 +233,9 @@ public class Recorder implements ServiceConnection {
      * Start the streaming server in the case of remote control of the recording
      */
     public void startStreaming() {
-        streamingServer.setCallback(new Callback() {
+        streamingServer.setCallback(new StreamingCallback() {
             @Override
-            public void start() {
+            public void onStartStreaming() {
                 context.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -244,7 +244,7 @@ public class Recorder implements ServiceConnection {
                 });
             }
             @Override
-            public void stop() {
+            public void onStopStreaming() {
                 context.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -311,7 +311,7 @@ public class Recorder implements ServiceConnection {
         this.service = myBinder.getService();
 
         this.service.connect(streamingServer);//connect the data-loggers (passing the streaming server if needed)
-        sensorReader.start();//start the sensor reader (it works in his own thread)
+        sensorReader.start();//onStartStreaming the sensor reader (it works in his own thread)
         stopped = false;
         this.bound = true;
     }

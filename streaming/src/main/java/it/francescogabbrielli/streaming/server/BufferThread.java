@@ -1,6 +1,10 @@
 package it.francescogabbrielli.streaming.server;
 
-public class BufferThread extends Thread {
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.util.Log;
+
+public class BufferThread implements Runnable {
 
     private final static int N_BUFFERS = 4;
 
@@ -11,69 +15,57 @@ public class BufferThread extends Thread {
 
     /** The streaming buffers */
     private Buffer[] buffers;
-    /** Flag for new data available */
-    private boolean newData;
-    private int currentBuffer;
+    /** Index of current buffer */
+    private int current;
+
+    private HandlerThread thread;
+    private Handler handler;
 
     BufferThread(StreamingServer server, String contentType) {
-        super("BufferThread-"+contentType);
+        //super("BufferThread-"+contentType);
         this.server = server;
         buffers = new Buffer[N_BUFFERS];
         for (int i = 0; i < N_BUFFERS; i++)
             buffers[i] = new Buffer(BUFFER_SIZE, contentType);
-        setDaemon(true);
-        start();
+        thread = new HandlerThread("BufferThread-"+contentType);
+        thread.start();
+        handler = new Handler(thread.getLooper());
     }
 
     synchronized void stream(byte[] data, long timestamp) {
-        buffers[currentBuffer].setData(data, timestamp);
-        newData = true;
-        notify();
+        //Log.d("BUFFER","Streaming data: "+data.length);
+        buffers[current].setData(data, timestamp);
+//        return this;
+        handler.post(this);
     }
 
     synchronized void streamAppend(byte[] data, long timestamp) {
-        buffers[currentBuffer].appendData(data, timestamp);
-        newData = true;
-        notify();
+        buffers[current].appendData(data, timestamp);
+//        return this;
+        handler.post(this);
     }
 
     synchronized void setHeaders(String headers) {
-        buffers[currentBuffer].headers = headers;
+        buffers[current].headers = headers;
     }
 
     @Override
     public void run() {
 
-        // stream current data
-        while (server.isRunning()) {
+        Buffer buffer;
 
-            Buffer buffer;
-
-            synchronized (this) {
-
-                while (!newData)
-                    try {
-                        //Util.Log.d(getTag(), "Wait for data...");
-                        wait();
-                    } catch (final InterruptedException stopMayHaveBeenCalled) {
-                        return;
-                    }
-
-                buffer = buffers[currentBuffer++];
-                currentBuffer %= N_BUFFERS;
-                buffers[currentBuffer].reset();
-                newData = false;
-            }
-
-            server.stream(buffer);
-
+        synchronized (this) {
+            buffer = buffers[current++];
+            current %= N_BUFFERS;
+            buffers[current].reset();
         }
+
+        server.stream(buffer);
 
     }
 
     synchronized void terminate() {
-        newData = true;
-        notify();
+        thread.quitSafely();
     }
 
 }

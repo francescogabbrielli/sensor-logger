@@ -1,10 +1,18 @@
 package it.francescogabbrielli.apps.sensorlogger.simple;
 
 import android.Manifest;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
-import android.os.Handler;
+import android.os.IBinder;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.util.Log;
@@ -23,14 +31,12 @@ import org.opencv.imgproc.Imgproc;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import it.francescogabbrielli.streaming.server.Start;
-import it.francescogabbrielli.streaming.server.Stop;
-import it.francescogabbrielli.streaming.server.StreamingServer;
+import it.francescogabbrielli.streaming.server.StreamingCallback;
 
-public class MainActivity extends OpenCVActivity {
+public class MainActivity extends OpenCVActivity implements ServiceConnection, StreamingCallback, SensorEventListener {
 
     private final static String TAG = OpenCVActivity.class.getSimpleName();
 
@@ -40,27 +46,20 @@ public class MainActivity extends OpenCVActivity {
     private String imageExt;
     private double frameRate;
 
-    private StreamingServer streamingServer;
-
-    private Handler streamingHandler;
-    private Runnable startStreaming, stopStreaming;
+    private StreamingService streamingService;
+    private boolean bound;
+    private SensorReader sensorReader;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
-                | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
-                | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
         imageExt = prefs.getString(App.STREAMING_IMAGE_EXT, ".jpg");
         frameRate = Util.getIntPref(prefs, App.FRAME_RATE);
-        streamingServer = new StreamingServer();
-        streamingHandler = new Handler();
-        startStreaming = new Start(streamingServer,
-            Util.getIntPref(prefs, App.STREAMING_IMAGE_PORT),
-            imageExt);
-        stopStreaming = new Stop(streamingServer);
+        startService(new Intent(this, StreamingService.class));
+//        sensorReader = new SensorReader(t(SensorManager) getSystemService(SENSOR_SERVICE), prefs);
     }
 
     @Override
@@ -94,17 +93,25 @@ public class MainActivity extends OpenCVActivity {
     @Override
     protected void onResume() {
         Log.v(TAG, "onResume");
-        super.onResume();
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-        streamingHandler.postDelayed(startStreaming, 1000);
+        super.onResume();
+
+//        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+//        if (pm==null) {
+//            Toast.makeText(this, "No power manager?", Toast.LENGTH_LONG).show();
+//            finish();
+//            return;
+//        }
+//        if (pm.isInteractive())
+//            Log.v(TAG, "onGoodResume");
+
     }
 
 
     @Override
     protected void onPause() {
         Log.v(TAG, "onPause");
-        streamingHandler.removeCallbacks(startStreaming);
-        streamingHandler.post(stopStreaming);
+        //unbindService(this);
         super.onPause();
     }
 
@@ -184,27 +191,30 @@ public class MainActivity extends OpenCVActivity {
         }
     }
 
+    boolean streaming;
     double frameRateAvg;//milliseconds
     long frameNumber, lastTime, frameDuration, timestamp;
     int lastFps;
-    private Executor frameExec;
+    private ExecutorService frameExec;
 
     @Override
     public void onCameraViewStarted(int width, int height) {
         super.onCameraViewStarted(width, height);
+        bindService(new Intent(this, StreamingService.class), this, Context.BIND_AUTO_CREATE);
         frameExec = Executors.newSingleThreadExecutor();
         frameRateAvg = frameRate;
         frameDuration = (long) (0.5d + ONE_BILLION / frameRate);
-        frameNumber = 0;
+        frameNumber = 1;
         lastTime = 0;
     }
 
     private void fps(long t) {
         if (lastTime>0) {
-            frameRateAvg = ((++frameNumber-1) * frameRateAvg + (t-lastTime)/ONE_BILLION) / frameNumber;
-            if (frameNumber>40)
-                frameNumber=1;
-            final int fps = (int) (0.5d + Math.max(frameRateAvg, frameRate));
+            frameRateAvg = frameNumber * frameRateAvg /
+                    ((frameNumber-1) + frameRateAvg * ((t-lastTime) / ONE_BILLION));
+            if (frameNumber++>40)
+                frameNumber=2;
+            final int fps = (int) (0.5d + Math.min(frameRateAvg, frameRate));
             if (fps!=lastFps)
                 runOnUiThread(new Runnable() {
                     @Override
@@ -222,7 +232,7 @@ public class MainActivity extends OpenCVActivity {
     public Mat onCameraFrame(final Mat inputFrame) {
         final long t = SystemClock.elapsedRealtimeNanos();
         fps(t);//compute fps and show em on screen
-        if (streamingServer.isRunning() && t-timestamp >= frameDuration) {// check if enough time is passed to record the next frame (during recording)
+        if (streaming && t-timestamp >= frameDuration) {// check if enough time is passed to record the next frame (during recording)
             frameExec.execute(new Runnable() {
                 @Override
                 public void run() {
@@ -230,12 +240,60 @@ public class MainActivity extends OpenCVActivity {
                     Mat converted = new Mat(inputFrame.size(), inputFrame.type());
                     Imgproc.cvtColor(inputFrame, converted, Imgproc.COLOR_RGB2BGRA);//convert colors
                     Imgcodecs.imencode(imageExt, converted, buf);//encode the frame into the buffer buf in the format specified by imgFormat
-                    streamingServer.streamImage(buf.toArray(), t);
+                    if (bound)
+                        streamingService.streamImage(buf.toArray(), t);
                 }
             });
             timestamp = t;
         }
         return inputFrame;
+    }
+
+    @Override
+    public void onCameraViewStopped() {
+        Log.d(TAG, String.format("Dumped %s frames", frameExec.shutdownNow().size()));
+        unbindService(this);
+        super.onCameraViewStopped();
+    }
+
+    @Override
+    public void onServiceDisconnected(ComponentName name) {
+        Log.d(TAG, "Service disconnected");
+        if (bound && streamingService!=null)
+            streamingService.stop();
+        streamingService = null;
+        bound = false;
+    }
+
+    @Override
+    public void onServiceConnected(ComponentName name, IBinder service) {
+        Log.d(TAG, "Service connected");
+        StreamingService.Binder binder = (StreamingService.Binder) service;
+        streamingService = binder.getService();
+        streamingService.start(this);
+        bound = true;
+    }
+
+    @Override
+    public void onStartStreaming() {
+        streaming = true;
+        sensorReader.start();
+    }
+
+    @Override
+    public void onStopStreaming() {
+        sensorReader.stop();
+        streaming = false;
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+
     }
 
 }

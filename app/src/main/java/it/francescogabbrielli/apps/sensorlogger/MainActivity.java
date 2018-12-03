@@ -105,7 +105,7 @@ public class MainActivity extends AppCompatActivity implements
 
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
-        //start the service
+        //onStartStreaming the service
         startService(new Intent(this, LoggingService.class));
 
         recorder = new Recorder(this,
@@ -177,7 +177,7 @@ public class MainActivity extends AppCompatActivity implements
         if (!goodResume || !goodPause)
             return;
 
-        //stop the streaming server
+        //onStopStreaming the streaming server
         if (Util.getIntPref(prefs, Util.PREF_STREAMING) > 0 && prefs.getBoolean(Util.PREF_STREAMING_RECORD, false))
             recorder.stopStreaming();
 
@@ -302,7 +302,7 @@ public class MainActivity extends AppCompatActivity implements
                 }
             },0,1, TimeUnit.SECONDS);
         } catch(Exception e) {
-            Util.Log.e(TAG, "Cannot start prepare animation", e);
+            Util.Log.e(TAG, "Cannot onStartStreaming prepare animation", e);
         }
     }
     private void hidePrepareAnimation() {
@@ -330,7 +330,7 @@ public class MainActivity extends AppCompatActivity implements
                 }
             }, 0, 500, TimeUnit.MILLISECONDS);
         } catch(Exception e) {
-            Util.Log.e(TAG, "Cannot start rec animation", e);
+            Util.Log.e(TAG, "Cannot onStartStreaming rec animation", e);
         }
     }
 
@@ -354,7 +354,7 @@ public class MainActivity extends AppCompatActivity implements
             }, 0, TimeUnit.SECONDS);
         } catch(Exception e) {
             Util.Log.e(TAG, String.format(Locale.US,
-                    "Cannot stop rec animation [SHUTDOWN: %s, TERMINATED: %s]",
+                    "Cannot onStopStreaming rec animation [SHUTDOWN: %s, TERMINATED: %s]",
                     animExec.isShutdown(), animExec.isTerminated()), e);
         }
     }

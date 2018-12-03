@@ -5,6 +5,8 @@ import android.util.Log;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketException;
+import java.util.Scanner;
 
 public class Streaming implements Runnable {
 
@@ -44,11 +46,14 @@ public class Streaming implements Runnable {
 
     private boolean withBoundary;
 
+    private String address;
+
     /** Size beyond which the outputstream is flushed */
     private final static int CHUNK_SIZE = 32 * 1024;
 
     Streaming(StreamingServer server, Socket socket) {
         this(server, socket, true);
+        address = socket.getInetAddress().getHostAddress();
     }
 
     Streaming(StreamingServer server, Socket socket, boolean withBoundary) {
@@ -71,6 +76,7 @@ public class Streaming implements Runnable {
     public void run() {
 
         DataOutputStream stream = null;
+        boolean brokenPipe = false;
 
         try {
 
@@ -79,7 +85,7 @@ public class Streaming implements Runnable {
             Log.v(getTag(), HTTP_HEADER);
             int toFlush = HTTP_HEADER.length();
 
-            // start recording automatically if set
+            // onStartStreaming recording automatically if set
             server.startCallback();
 
             // stream current data
@@ -88,12 +94,12 @@ public class Streaming implements Runnable {
                 synchronized (this) {
 
                     //while (buffer==null)
-                        try {
-                            //Util.Log.d(getTag(), "Wait for data...");
-                            wait();
-                        } catch (final InterruptedException stopMayHaveBeenCalled) {
-                            return;
-                        }
+                    try {
+                        //Util.Log.d(getTag(), "Wait for data...");
+                        wait();
+                    } catch (final InterruptedException stopMayHaveBeenCalled) {
+                        return;
+                    }
 
                     if (withBoundary) {
                         stream.writeBytes(BOUNDARY_LINE);
@@ -103,7 +109,7 @@ public class Streaming implements Runnable {
                         toFlush += partHeaders.length();
                     }
 
-                    if (buffer.headers!=null) {
+                    if (buffer.headers != null) {
                         stream.writeBytes(buffer.headers);
                         toFlush += buffer.headers.length();
                         buffer.headers = null;
@@ -117,7 +123,7 @@ public class Streaming implements Runnable {
                         toFlush += 2;
                     }
 
-                    if (toFlush>CHUNK_SIZE) {
+                    if (toFlush > CHUNK_SIZE) {
                         stream.flush();
                         toFlush = 0;
                     }
@@ -126,7 +132,9 @@ public class Streaming implements Runnable {
                 }
 
             }
-
+        } catch (SocketException e) {
+            Log.e(getTag(), "Broken stream", e);
+            brokenPipe = true;
         } catch (IOException e) {
             Log.e(getTag(), "Error while streaming", e);
         } catch(Throwable t) {
@@ -134,8 +142,8 @@ public class Streaming implements Runnable {
         } finally {
             Log.d(getTag(), "Closing down");
             try {
-                if (stream!=null) {
-                    if (withBoundary && socket!=null && !socket.isOutputShutdown()) {
+                if (stream!=null && !brokenPipe) {
+                    if (withBoundary && socket!=null) {
                         stream.writeBytes(BOUNDARY_LINE + "--\r\n\r\n");
                         stream.flush();
                     }
@@ -152,7 +160,7 @@ public class Streaming implements Runnable {
     }
 
     private String getTag() {
-        return "Streaming";
+        return "Streaming "+address;
     }
 
 }
