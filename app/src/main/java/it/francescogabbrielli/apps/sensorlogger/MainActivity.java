@@ -545,7 +545,8 @@ public class MainActivity extends AppCompatActivity implements
                     Mat converted = new Mat(inputFrame.size(), inputFrame.type());
                     Imgproc.cvtColor(inputFrame, converted, Imgproc.COLOR_RGB2BGRA);//convert colors
                     Imgcodecs.imencode(imgFormat, converted, buf);//encode the frame into the buffer buf in the format specified by imgFormat
-                    recorder.record(buf.toArray(), t);//record the frame
+                    if (recording)
+                        recorder.record(buf.toArray(), t);//record the frame
                 }
             });
             timestamp = t;

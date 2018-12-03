@@ -223,7 +223,7 @@ public class LoggingService extends Service {
      *     (one of {@link LogTarget#OPEN}, {@link LogTarget#WRITE}, {@link LogTarget#CLOSE}, {@link LogTarget#SEND})
      * @param data the data to send
      */
-    public synchronized void log(final String folder, final String filename, final int type, final byte[] data, long timestamp) {
+    public void log(final String folder, final String filename, final int type, final byte[] data, long timestamp) {
         LogOperation operate = new LogOperation(type, data, folder, filename, timestamp);
         if (type==LogTarget.SEND) {
             for (LogTarget t : imageLoggers)
