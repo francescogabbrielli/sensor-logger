@@ -25,12 +25,6 @@ import java.util.concurrent.Future;
  */
 public class StreamingServer implements Runnable {
 
-    private static final Map<String, String> CONTENT_TYPES = new HashMap<String, String>()
-    {{
-        put(".jpg", "image/jpeg");
-        put(".png", "image/png");
-    }};
-
     private static final String TAG = StreamingServer.class.getSimpleName();
 
     private static final long DELAY_LIMIT = 100000000L;
@@ -44,6 +38,7 @@ public class StreamingServer implements Runnable {
     private List<Streaming> threads;
     private List<Future> futures;
     private final static int N_THREADS = 4;
+    private String contentType;
 
     /** The server socket */
     private ServerSocket serverSocket;
@@ -52,12 +47,17 @@ public class StreamingServer implements Runnable {
     /** Recording control callback */
     private StreamingCallback callback;
 
-
     public StreamingServer() {
+        this(null);//multipart
+    }
+
+
+    public StreamingServer(String contentType) {
         stopped = true;
         threadPool = Executors.newFixedThreadPool(N_THREADS);
         threads = Collections.synchronizedList(new LinkedList<Streaming>());
         futures = Collections.synchronizedList(new LinkedList<Future>());
+        this.contentType = contentType;
     }
 
     public synchronized void setCallback(StreamingCallback callback) {
@@ -65,8 +65,11 @@ public class StreamingServer implements Runnable {
     }
 
     public synchronized void setDataHeaders(String headers) {
+        Log.d(TAG,"Stream headers: "+headers);
         if (dataBufferThread !=null)
             dataBufferThread.setHeaders(headers);
+        else if (imageBufferThread != null)
+            imageBufferThread.setHeaders(headers);
     }
 
     public boolean isRunning() {
@@ -83,18 +86,24 @@ public class StreamingServer implements Runnable {
             callback.onStopStreaming();
     }
 
-    public synchronized boolean start(int port, String imageExt) {
-        return start(port, imageExt,false);
+    public synchronized boolean start(int port) {
+        return start(port, contentType,false);
+    }
+
+    public synchronized boolean start(int port, String contentType) {
+        return start(port, contentType,false);
     }
 
     /**
      * Start the server
      *
-     * @param port
+     * @param port server port
+     * @param contentType frame content-type
+     * @param streamSensors if streaming extra data for sensors together with the main data
      * @return true if it actually starts
      * @throws Exception
      */
-    public synchronized boolean start(int port, String imageExt, boolean streamSensors) {
+    public synchronized boolean start(int port, String contentType, boolean streamSensors) {
         if (running || !stopped)
             return false;
 
@@ -102,8 +111,8 @@ public class StreamingServer implements Runnable {
 
         this.port = port;
 
-        if (imageExt!=null)
-            imageBufferThread = new BufferThread(this, CONTENT_TYPES.get(imageExt)!=null ? CONTENT_TYPES.get(imageExt) : "image/*");
+        if (contentType!=null)
+            imageBufferThread = new BufferThread(this, contentType);
         if (streamSensors)
             dataBufferThread = new BufferThread(this, "text/csv");
         thread = new Thread(this);
@@ -114,18 +123,18 @@ public class StreamingServer implements Runnable {
     }
 
     /**
-     * Stream image data
+     * Stream frame data
      *
-     * @param data the image data to stream
+     * @param data the frame data to stream
      * @param timestamp the timestamp of the image
      * @return the {@link Runnable} performing the streaming
      */
-    public synchronized void streamImage(byte[] data, long timestamp) {
+    public synchronized void streamFrame(byte[] data, long timestamp) {
         imageBufferThread.stream(data, timestamp);
     }
 
     /**
-     * Stream sensors data
+     * Stream extra sensors data
      *
      * @param data the sensors data to stream
      * @param timestamp the timestamp of the sensors data
@@ -145,7 +154,7 @@ public class StreamingServer implements Runnable {
             running = false;
             Log.i(TAG, "Stop Streaming");
             try { serverSocket.close(); }//in case is accepting
-            catch(Exception e) {Log.e(TAG, "Can't onStopStreaming?", e);}
+            catch(Exception e) {Log.e(TAG, "Can't stop?", e);}
             if (imageBufferThread!=null)
                 imageBufferThread.terminate();
             if (dataBufferThread !=null)
@@ -176,7 +185,7 @@ public class StreamingServer implements Runnable {
         stopped = false;
         while (running)
             try {
-                Log.d(TAG, "Listen for incoming connections...");
+                Log.d(TAG, "Listen for incoming connections on port "+port+"...");
                 acceptAndSStream();
             } catch( SocketException e ) {
                 //e.printStackTrace();
@@ -205,7 +214,7 @@ public class StreamingServer implements Runnable {
         do try {
             socket = serverSocket.accept();
             Log.d(TAG, "Connected to " + socket);
-            Streaming s = new Streaming(this, socket);
+            Streaming s = new Streaming(this, socket, contentType);
             threads.add(s);
             futures.add(threadPool.submit(s));
             serverSocket.close();

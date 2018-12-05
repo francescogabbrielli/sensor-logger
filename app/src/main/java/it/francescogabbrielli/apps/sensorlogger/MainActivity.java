@@ -105,7 +105,7 @@ public class MainActivity extends AppCompatActivity implements
 
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
-        //onStartStreaming the service
+        //start the service
         startService(new Intent(this, LoggingService.class));
 
         recorder = new Recorder(this,
@@ -177,7 +177,7 @@ public class MainActivity extends AppCompatActivity implements
         if (!goodResume || !goodPause)
             return;
 
-        //onStopStreaming the streaming server
+        //stop the streaming server
         if (Util.getIntPref(prefs, Util.PREF_STREAMING) > 0 && prefs.getBoolean(Util.PREF_STREAMING_RECORD, false))
             recorder.stopStreaming();
 
@@ -302,7 +302,7 @@ public class MainActivity extends AppCompatActivity implements
                 }
             },0,1, TimeUnit.SECONDS);
         } catch(Exception e) {
-            Util.Log.e(TAG, "Cannot onStartStreaming prepare animation", e);
+            Util.Log.e(TAG, "Cannot prepare animation", e);
         }
     }
     private void hidePrepareAnimation() {
@@ -330,7 +330,7 @@ public class MainActivity extends AppCompatActivity implements
                 }
             }, 0, 500, TimeUnit.MILLISECONDS);
         } catch(Exception e) {
-            Util.Log.e(TAG, "Cannot onStartStreaming rec animation", e);
+            Util.Log.e(TAG, "Cannot start rec animation", e);
         }
     }
 
@@ -354,7 +354,7 @@ public class MainActivity extends AppCompatActivity implements
             }, 0, TimeUnit.SECONDS);
         } catch(Exception e) {
             Util.Log.e(TAG, String.format(Locale.US,
-                    "Cannot onStopStreaming rec animation [SHUTDOWN: %s, TERMINATED: %s]",
+                    "Cannot stop rec animation [SHUTDOWN: %s, TERMINATED: %s]",
                     animExec.isShutdown(), animExec.isTerminated()), e);
         }
     }
@@ -544,7 +544,8 @@ public class MainActivity extends AppCompatActivity implements
                     Mat converted = new Mat(inputFrame.size(), inputFrame.type());
                     Imgproc.cvtColor(inputFrame, converted, Imgproc.COLOR_RGB2BGRA);//convert colors
                     Imgcodecs.imencode(imgFormat, converted, buf);//encode the frame into the buffer buf in the format specified by imgFormat
-                    recorder.record(buf.toArray(), t);//record the frame
+                    if (recording)
+                        recorder.record(buf.toArray(), t);//record the frame
                 }
             });
             timestamp = t;

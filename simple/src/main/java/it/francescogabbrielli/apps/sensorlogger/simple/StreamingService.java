@@ -3,16 +3,27 @@ package it.francescogabbrielli.apps.sensorlogger.simple;
 import android.app.Service;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.hardware.SensorManager;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import it.francescogabbrielli.streaming.server.StreamingCallback;
 import it.francescogabbrielli.streaming.server.StreamingServer;
 
 
 public class StreamingService extends Service {
+
+
+    private static final Map<String, String> CONTENT_TYPES = new HashMap<String, String>()
+    {{
+        put(".jpg", "image/jpeg");
+        put(".png", "image/png");
+    }};
 
     private final static String TAG = StreamingService.class.getSimpleName();
 
@@ -25,17 +36,20 @@ public class StreamingService extends Service {
     }
 
     private SharedPreferences prefs;
-    private StreamingServer streamingServer;
+    private StreamingServer imageServer, sensorServer;
+    private SensorReader sensorReader;
 
-    public StreamingService() {
-
-    }
+    public StreamingService() { }
 
     @Override
     public void onCreate() {
         super.onCreate();
-        streamingServer = new StreamingServer();
+        imageServer = new StreamingServer();
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        if (Util.getIntPref(prefs, App.STREAMING_SENSORS_PORT)>0) {
+            sensorReader = new SensorReader((SensorManager) getSystemService(SENSOR_SERVICE), prefs);
+            sensorServer = new StreamingServer("text/event-stream");
+        }
     }
 
     @Nullable
@@ -47,6 +61,7 @@ public class StreamingService extends Service {
     @Override
     public boolean onUnbind(Intent intent) {
         Log.v(TAG, "in onUnbind");
+        stop();
         return super.onUnbind(intent);
     }
 
@@ -60,16 +75,32 @@ public class StreamingService extends Service {
     public void start(StreamingCallback callback) {
         int port = Util.getIntPref(prefs, App.STREAMING_IMAGE_PORT);
         String imageExt = prefs.getString(App.STREAMING_IMAGE_EXT, ".jpg");
-        streamingServer.setCallback(callback);
-        streamingServer.start(port, imageExt);
+        imageServer.setCallback(callback);
+        imageServer.start(port, CONTENT_TYPES.get(imageExt)!=null ? CONTENT_TYPES.get(imageExt) : "image/*");
+        port = Util.getIntPref(prefs, App.STREAMING_SENSORS_PORT);
+        if (sensorServer!=null && port>0) {
+            sensorServer.start(port);
+            sensorReader.start();
+            sensorServer.setDataHeaders(sensorReader.readHeaders());
+        }
     }
 
     public void stop() {
-        streamingServer.stop();
+        imageServer.stop();
+        if (sensorServer!=null) {
+            sensorServer.stop();
+            sensorReader.stop();
+        }
     }
 
     public void streamImage(byte[] data, long timestamp) {
-        streamingServer.streamImage(data, timestamp);
+        imageServer.streamFrame(data, timestamp);
+        if (sensorServer!=null)
+            sensorServer.streamFrame(sensorReader.readSensors(timestamp).getBytes(), timestamp);
     }
+
+
+
+
 
 }

@@ -18,11 +18,11 @@ android {
         }
     }
 
-    sourceSets {
-        main {
-            jniLibs.srcDirs "sdk/native/libs"
-        }
-    }
+//    sourceSets {
+//        main {
+//            jniLibs.srcDirs "sdk/native/libs"
+//        }
+//    }
 }
 
 dependencies {
