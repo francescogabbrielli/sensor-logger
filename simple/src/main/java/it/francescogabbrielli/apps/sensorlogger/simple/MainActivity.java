@@ -272,6 +272,7 @@ public class MainActivity extends OpenCVActivity implements ServiceConnection, S
     @Override
     public void onStartStreaming() {
         streaming = true;
+        streamingService.onStartStreaming();
     }
 
     @Override

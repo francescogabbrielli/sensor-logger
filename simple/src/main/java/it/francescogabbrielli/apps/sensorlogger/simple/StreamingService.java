@@ -81,7 +81,6 @@ public class StreamingService extends Service {
         if (sensorServer!=null && port>0) {
             sensorServer.start(port);
             sensorReader.start();
-            sensorServer.setDataHeaders(sensorReader.readHeaders());
         }
     }
 
@@ -99,7 +98,9 @@ public class StreamingService extends Service {
             sensorServer.streamFrame(sensorReader.readSensors(timestamp).getBytes(), timestamp);
     }
 
-
+    public void onStartStreaming() {
+        sensorServer.setDataHeaders(sensorReader.readHeaders());
+    }
 
 
 
