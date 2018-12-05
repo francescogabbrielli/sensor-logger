@@ -7,10 +7,6 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.SystemClock;
@@ -36,7 +32,7 @@ import java.util.concurrent.Executors;
 
 import it.francescogabbrielli.streaming.server.StreamingCallback;
 
-public class MainActivity extends OpenCVActivity implements ServiceConnection, StreamingCallback, SensorEventListener {
+public class MainActivity extends OpenCVActivity implements ServiceConnection, StreamingCallback {
 
     private final static String TAG = OpenCVActivity.class.getSimpleName();
 
@@ -48,7 +44,6 @@ public class MainActivity extends OpenCVActivity implements ServiceConnection, S
 
     private StreamingService streamingService;
     private boolean bound;
-    private SensorReader sensorReader;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -277,23 +272,11 @@ public class MainActivity extends OpenCVActivity implements ServiceConnection, S
     @Override
     public void onStartStreaming() {
         streaming = true;
-        sensorReader.start();
     }
 
     @Override
     public void onStopStreaming() {
-        sensorReader.stop();
         streaming = false;
-    }
-
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
-    }
-
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-
     }
 
 }

@@ -17,7 +17,7 @@ public class Streaming implements Runnable {
 
     private static final int BOUNDARY_LENGTH = BOUNDARY_LINE.length();
     /** HTTP header */
-    private static final String HTTP_HEADER = (
+    private static final String HTTP_HEADER =
             "HTTP/1.0 200 OK\r\n" +
                     "StreamingServer: SensorLogger\r\n" +
                     "Connection: close\r\n" +
@@ -25,8 +25,9 @@ public class Streaming implements Runnable {
                     "Expires: 0\r\n" +
                     "Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n" +
                     "Pragma: no-cache\r\n" +
-                    "Content-Type: multipart/x-mixed-replace; boundary=" + BOUNDARY + "\r\n" +
-                    "\r\n");
+                    "Content-Type: %s \r\n" +
+                    "Access-Control-Allow-Origin: *\r\n" +
+                    "\r\n";
 
 
     /** Create a random boundary */
@@ -45,24 +46,21 @@ public class Streaming implements Runnable {
     private Socket socket;
 
     private boolean withBoundary;
-
+    private String contentType;
     private String address;
 
     /** Size beyond which the outputstream is flushed */
     private final static int CHUNK_SIZE = 32 * 1024;
 
-    Streaming(StreamingServer server, Socket socket) {
-        this(server, socket, true);
-        address = socket.getInetAddress().getHostAddress();
-    }
-
-    Streaming(StreamingServer server, Socket socket, boolean withBoundary) {
+    Streaming(StreamingServer server, Socket socket, String contentType) {
         this.server = server;
         this.socket = socket;
-        this.withBoundary = withBoundary;
+        this.withBoundary = contentType==null;
+        this.contentType = contentType;
+        address = socket.getLocalAddress()+":"+socket.getLocalPort();
     }
 
-    public synchronized void stream(Buffer buffer) {
+    synchronized void stream(Buffer buffer) {
         this.buffer = buffer;
         notify();
     }
@@ -81,11 +79,14 @@ public class Streaming implements Runnable {
         try {
 
             stream = new DataOutputStream(socket.getOutputStream());
-            stream.writeBytes(HTTP_HEADER);
-            Log.v(getTag(), HTTP_HEADER);
-            int toFlush = HTTP_HEADER.length();
+            String header = String.format(HTTP_HEADER, withBoundary
+                    ? "multipart/x-mixed-replace; boundary=" + BOUNDARY
+                    : contentType);
+            stream.writeBytes(header);
+            Log.v(getTag(), header);
+            int toFlush = header.length();
 
-            // onStartStreaming recording automatically if set
+            // start recording automatically if set
             server.startCallback();
 
             // stream current data
@@ -100,6 +101,9 @@ public class Streaming implements Runnable {
                     } catch (final InterruptedException stopMayHaveBeenCalled) {
                         return;
                     }
+
+                    if (buffer==null)
+                        return;
 
                     if (withBoundary) {
                         stream.writeBytes(BOUNDARY_LINE);

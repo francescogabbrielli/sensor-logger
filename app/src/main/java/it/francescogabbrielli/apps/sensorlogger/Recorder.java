@@ -311,7 +311,7 @@ public class Recorder implements ServiceConnection {
         this.service = myBinder.getService();
 
         this.service.connect(streamingServer);//connect the data-loggers (passing the streaming server if needed)
-        sensorReader.start();//onStartStreaming the sensor reader (it works in his own thread)
+        sensorReader.start();//start the sensor reader (it works in his own thread)
         stopped = false;
         this.bound = true;
     }

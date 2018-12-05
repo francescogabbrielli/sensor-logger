@@ -9,6 +9,7 @@ public class App extends Application {
 
     public final static String STREAMING_IMAGE_PORT        = "streaming_image_port";
     public final static String STREAMING_IMAGE_EXT         = "streaming_image_ext";
+    public final static String STREAMING_SENSORS_PORT      = "streaming_sensors_port";
 
     @Override
     public void onCreate() {

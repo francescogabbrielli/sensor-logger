@@ -56,7 +56,6 @@ public class SensorReader implements SensorEventListener, Iterable<SensorEvent> 
                 if (s!=null)
                     sensors.add(s);
             }
-
     }
 
     /**

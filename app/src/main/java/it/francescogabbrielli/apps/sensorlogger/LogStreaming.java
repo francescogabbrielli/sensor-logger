@@ -70,7 +70,7 @@ public class LogStreaming extends LogTarget {
             }
             server.streamData(data, timestamp);
         } else
-            server.streamImage(data, timestamp);
+            server.streamFrame(data, timestamp);
     }
 
     @Override
