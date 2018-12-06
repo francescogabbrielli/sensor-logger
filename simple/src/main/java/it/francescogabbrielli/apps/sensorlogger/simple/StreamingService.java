@@ -12,6 +12,7 @@ import android.util.Log;
 import java.util.HashMap;
 import java.util.Map;
 
+import it.francescogabbrielli.streaming.server.Streaming;
 import it.francescogabbrielli.streaming.server.StreamingCallback;
 import it.francescogabbrielli.streaming.server.StreamingServer;
 
@@ -98,8 +99,8 @@ public class StreamingService extends Service {
             sensorServer.streamFrame(sensorReader.readSensors(timestamp).getBytes(), timestamp);
     }
 
-    public void onStartStreaming() {
-        sensorServer.setDataHeaders(sensorReader.readHeaders());
+    public void onStartStreaming(Streaming s) {
+        s.setDataHeaders(sensorReader.readHeaders());
     }
 
 

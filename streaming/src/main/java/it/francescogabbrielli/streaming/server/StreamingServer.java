@@ -35,13 +35,36 @@ public class StreamingServer implements Runnable {
     private Thread thread;
     private BufferThread imageBufferThread, dataBufferThread;
     private ExecutorService threadPool;
-    private List<Streaming> threads;
-    private List<Future> futures;
+    private List<StreamingThread> threads;
     private final static int N_THREADS = 4;
     private String contentType;
 
+    private int counter;
+
     /** The server socket */
     private ServerSocket serverSocket;
+
+    class StreamingThread {
+        int number;
+        Streaming streaming;
+        Future future;
+        StreamingThread(int number, Streaming streaming) {
+            this.number = number;
+            this.streaming = streaming;
+            this.future = threadPool.submit(streaming);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof Streaming
+                    ? ((Streaming) obj).getNumber() == number : super.equals(obj);
+        }
+
+        @Override
+        public int hashCode() {
+            return streaming.hashCode();
+        }
+    }
 
 
     /** Recording control callback */
@@ -55,30 +78,22 @@ public class StreamingServer implements Runnable {
     public StreamingServer(String contentType) {
         stopped = true;
         threadPool = Executors.newFixedThreadPool(N_THREADS);
-        threads = Collections.synchronizedList(new LinkedList<Streaming>());
-        futures = Collections.synchronizedList(new LinkedList<Future>());
+        threads = Collections.synchronizedList(new LinkedList<StreamingThread>());
         this.contentType = contentType;
+        counter = 0;
     }
 
     public synchronized void setCallback(StreamingCallback callback) {
         this.callback = callback;
     }
 
-    public synchronized void setDataHeaders(String headers) {
-        Log.d(TAG,"Stream headers: "+headers);
-        if (dataBufferThread !=null)
-            dataBufferThread.setHeaders(headers);
-        else if (imageBufferThread != null)
-            imageBufferThread.setHeaders(headers);
-    }
-
     public boolean isRunning() {
         return running;
     }
 
-    synchronized void startCallback() {
+    synchronized void startCallback(Streaming s) {
         if (callback!=null)
-            callback.onStartStreaming();
+            callback.onStartStreaming(s);
     }
 
     synchronized void stopCallback() {
@@ -159,11 +174,11 @@ public class StreamingServer implements Runnable {
                 imageBufferThread.terminate();
             if (dataBufferThread !=null)
                 dataBufferThread.terminate();
-            for (Streaming s : threads)
-                s.stream(null);
-            for (Future f : futures)
-                f.cancel(false);
-            futures.clear();
+            for (StreamingThread s : threads) {
+                s.streaming.stream(null);
+                s.future.cancel(false);
+            }
+            threads.clear();
         }
     }
 
@@ -172,9 +187,9 @@ public class StreamingServer implements Runnable {
      */
     public synchronized void reset() {
         Log.i(TAG, "Restart Streaming");
-        for (Future f : futures)
-            f.cancel(true);
-        futures.clear();
+        for (StreamingThread st : threads)
+            st.future.cancel(true);
+        threads.clear();
     }
 
     /**
@@ -214,9 +229,9 @@ public class StreamingServer implements Runnable {
         do try {
             socket = serverSocket.accept();
             Log.d(TAG, "Connected to " + socket);
-            Streaming s = new Streaming(this, socket, contentType);
-            threads.add(s);
-            futures.add(threadPool.submit(s));
+            int n = counter++;
+            Streaming s = new Streaming(this, n, socket, contentType);
+            threads.add(new StreamingThread(n, s));
             serverSocket.close();
         } catch (final SocketTimeoutException e) {
             if (!running)
@@ -226,9 +241,13 @@ public class StreamingServer implements Runnable {
 
     }
 
+    void end(Streaming s) {
+        threads.remove(s);
+    }
+
     void stream(Buffer buffer) {
-        for (Streaming s : threads)
-            s.stream(buffer);
+        for (StreamingThread st : threads)
+            st.streaming.stream(buffer);
     }
 
     public void dispose() {

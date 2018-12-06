@@ -23,8 +23,6 @@ class Buffer {
 
     String contentType;
 
-    String headers;
-
     Buffer(int size, String contentType) {
         this.data = new byte[size];
         this.contentType = contentType;

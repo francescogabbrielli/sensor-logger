@@ -2,7 +2,6 @@ package it.francescogabbrielli.streaming.server;
 
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.util.Log;
 
 public class BufferThread implements Runnable {
 
@@ -43,10 +42,6 @@ public class BufferThread implements Runnable {
         buffers[current].appendData(data, timestamp);
 //        return this;
         handler.post(this);
-    }
-
-    synchronized void setHeaders(String headers) {
-        buffers[current].headers = headers;
     }
 
     @Override
