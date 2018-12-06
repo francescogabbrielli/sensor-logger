@@ -12,6 +12,7 @@ import android.util.Log;
 import java.util.HashMap;
 import java.util.Map;
 
+import it.francescogabbrielli.streaming.server.Streaming;
 import it.francescogabbrielli.streaming.server.StreamingCallback;
 import it.francescogabbrielli.streaming.server.StreamingServer;
 
@@ -38,6 +39,8 @@ public class StreamingService extends Service {
     private SharedPreferences prefs;
     private StreamingServer imageServer, sensorServer;
     private SensorReader sensorReader;
+    private int port;
+
 
     public StreamingService() { }
 
@@ -73,13 +76,14 @@ public class StreamingService extends Service {
     }
 
     public void start(StreamingCallback callback) {
-        int port = Util.getIntPref(prefs, App.STREAMING_IMAGE_PORT);
+        port = Util.getIntPref(prefs, App.STREAMING_IMAGE_PORT);
         String imageExt = prefs.getString(App.STREAMING_IMAGE_EXT, ".jpg");
         imageServer.setCallback(callback);
         imageServer.start(port, CONTENT_TYPES.get(imageExt)!=null ? CONTENT_TYPES.get(imageExt) : "image/*");
-        port = Util.getIntPref(prefs, App.STREAMING_SENSORS_PORT);
-        if (sensorServer!=null && port>0) {
-            sensorServer.start(port);
+        int port2 = Util.getIntPref(prefs, App.STREAMING_SENSORS_PORT);
+        if (sensorServer!=null && port2>0) {
+            sensorServer.setCallback(callback);
+            sensorServer.start(port2);
             sensorReader.start();
         }
     }
@@ -98,8 +102,10 @@ public class StreamingService extends Service {
             sensorServer.streamFrame(sensorReader.readSensors(timestamp).getBytes(), timestamp);
     }
 
-    public void onStartStreaming() {
-        sensorServer.setDataHeaders(sensorReader.readHeaders());
+    public void onStartStreaming(Streaming s) {
+        Log.d(TAG,"ON START STREAMING: "+s.getPort());
+        if (s.getPort()!=port)
+            s.setDataHeaders(sensorReader.readHeaders());
     }
 
 

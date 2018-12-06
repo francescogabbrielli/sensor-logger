@@ -30,6 +30,7 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import it.francescogabbrielli.streaming.server.Streaming;
 import it.francescogabbrielli.streaming.server.StreamingCallback;
 
 public class MainActivity extends OpenCVActivity implements ServiceConnection, StreamingCallback {
@@ -270,9 +271,9 @@ public class MainActivity extends OpenCVActivity implements ServiceConnection, S
     }
 
     @Override
-    public void onStartStreaming() {
+    public void onStartStreaming(Streaming s) {
         streaming = true;
-        streamingService.onStartStreaming();
+        streamingService.onStartStreaming(s);
     }
 
     @Override

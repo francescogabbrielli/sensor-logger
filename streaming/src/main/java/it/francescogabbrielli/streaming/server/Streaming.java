@@ -6,7 +6,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.Scanner;
 
 public class Streaming implements Runnable {
 
@@ -48,16 +47,32 @@ public class Streaming implements Runnable {
     private boolean withBoundary;
     private String contentType;
     private String address;
+    private String dataHeaders;
+    private int number;
 
     /** Size beyond which the outputstream is flushed */
     private final static int CHUNK_SIZE = 32 * 1024;
 
-    Streaming(StreamingServer server, Socket socket, String contentType) {
+    Streaming(StreamingServer server, int number, Socket socket, String contentType) {
+        this.number = number;
         this.server = server;
         this.socket = socket;
         this.withBoundary = contentType==null;
         this.contentType = contentType;
         address = socket.getLocalAddress()+":"+socket.getLocalPort();
+    }
+
+    public int getNumber() {
+        return number;
+    }
+
+    public int getPort() {
+        return socket.getLocalPort();
+    }
+
+    public synchronized void setDataHeaders(String dataHeaders) {
+        Log.d(getTag(), "Headers: "+dataHeaders);
+        this.dataHeaders = dataHeaders;
     }
 
     synchronized void stream(Buffer buffer) {
@@ -87,7 +102,7 @@ public class Streaming implements Runnable {
             int toFlush = header.length();
 
             // start recording automatically if set
-            server.startCallback();
+            server.startCallback(this);
 
             // stream current data
             while (server.isRunning()) {
@@ -113,10 +128,10 @@ public class Streaming implements Runnable {
                         toFlush += partHeaders.length();
                     }
 
-                    if (buffer.headers != null) {
-                        stream.writeBytes(buffer.headers);
-                        toFlush += buffer.headers.length();
-                        buffer.headers = null;
+                    if (dataHeaders != null) {
+                        stream.writeBytes(dataHeaders);
+                        toFlush += dataHeaders.length();
+                        dataHeaders = null;
                     }
 
                     stream.write(buffer.data, 0, buffer.length);
@@ -158,7 +173,7 @@ public class Streaming implements Runnable {
             }
             try { if (socket!=null) socket.close(); }
             catch (final Exception e) { Log.e(getTag(), "Error closing streaming client", e); }
-
+            server.end(this);
         }
 
     }
