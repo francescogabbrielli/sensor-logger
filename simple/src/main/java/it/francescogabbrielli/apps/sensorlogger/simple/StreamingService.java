@@ -103,7 +103,6 @@ public class StreamingService extends Service {
     }
 
     public void onStartStreaming(Streaming s) {
-        Log.d(TAG,"ON START STREAMING: "+s.getPort());
         if (s.getPort()!=port)
             s.setDataHeaders(sensorReader.readHeaders());
     }
